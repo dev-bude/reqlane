@@ -66,7 +66,15 @@ def save_session(cwd: Path, name: str | None, data: dict) -> Path:
 def find_session(cwd: Path | None = None, name: str | None = None, exact: bool = False) -> dict | None:
     """Session for cwd (walking up to parents unless exact); prefer REQLANE_SESSION name."""
     cwd = (cwd or Path.cwd()).resolve()
-    name = name or os.environ.get("REQLANE_SESSION") or runtime_session_id() or None
+    rsid = runtime_session_id()
+    name = name or os.environ.get("REQLANE_SESSION") or rsid or None
+    if rsid and not exact:
+        # The runtime session is the identity: find its file wherever the command is run from (cd does not matter).
+        for cand in sorted((config.home() / "sessions").glob(f"*.{rsid}.json")):
+            try:
+                return json.loads(cand.read_text(encoding="utf-8")) | {"_file": str(cand)}
+            except ValueError:
+                continue
     for p in [cwd] if exact else [cwd, *cwd.parents]:
         for cand in ([session_file(p, name)] if name else []) + [session_file(p, None)]:
             if cand.exists():

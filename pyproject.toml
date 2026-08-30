@@ -21,5 +21,8 @@ build-backend = "setuptools.build_meta"
 [tool.setuptools.packages.find]
 include = ["reqlane*"]
 
+[tool.setuptools.package-data]
+reqlane = ["server/ui.html"]
+
 [tool.pytest.ini_options]
 testpaths = ["tests"]

@@ -1,0 +1,156 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Reqlane</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+  :root { --bg:#0f1115; --card:#171a21; --line:#2a2f3a; --fg:#e6e6e6; --dim:#8b93a7; --ok:#3fb950; --warn:#d29922; --bad:#f85149; --acc:#58a6ff; --po:#bc8cff; }
+  * { box-sizing: border-box; }
+  body { margin:0; background:var(--bg); color:var(--fg); font: 13px/1.45 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+  header { display:flex; gap:16px; align-items:center; padding:10px 16px; border-bottom:1px solid var(--line); position:sticky; top:0; background:var(--bg); z-index:2; }
+  header h1 { font-size:15px; margin:0 12px 0 0; }
+  .agent { display:inline-flex; align-items:center; gap:6px; padding:2px 8px; border:1px solid var(--line); border-radius:12px; color:var(--dim); }
+  .agent b { color:var(--fg); font-weight:600; }
+  .dot { width:8px; height:8px; border-radius:50%; background:var(--line); }
+  .dot.on { background:var(--ok); }
+  .po-badge { color:var(--po); }
+  main { padding:12px 16px 40px; max-width:1200px; }
+  .req { background:var(--card); border:1px solid var(--line); border-radius:8px; margin:10px 0; padding:10px 12px; }
+  .req.done { opacity:.7; }
+  .head { display:flex; flex-wrap:wrap; gap:8px 14px; align-items:baseline; }
+  .id { color:var(--dim); }
+  .type { color:var(--acc); }
+  .who b { font-weight:600; }
+  .title { flex:1 1 320px; }
+  .flag { color:var(--warn); }
+  .age { color:var(--dim); }
+  .stages { display:flex; align-items:center; margin:8px 0 4px; flex-wrap:wrap; gap:0; }
+  .st { padding:2px 8px; border:1px solid var(--line); color:var(--dim); border-radius:4px; font-size:12px; }
+  .st + .st { margin-left:14px; position:relative; }
+  .st + .st::before { content:"→"; position:absolute; left:-12px; color:var(--line); }
+  .st.past { border-color:var(--ok); color:var(--ok); }
+  .st.now { border-color:var(--acc); color:#fff; background:#1b2a3d; }
+  .st.done { border-color:var(--ok); color:#fff; background:#173220; }
+  .st.bad { border-color:var(--bad); color:var(--bad); }
+  .st.wait { border-color:var(--warn); color:var(--warn); }
+  .tree { margin:6px 0 0 6px; padding-left:12px; border-left:1px dashed var(--line); }
+  .leaf { color:var(--dim); margin:2px 0; }
+  .leaf b { color:var(--fg); font-weight:600; }
+  .leaf .k { color:var(--acc); }
+  .leaf .po { color:var(--po); }
+  .leaf .ok { color:var(--ok); }
+  .leaf .bad { color:var(--bad); }
+  .actor { color:var(--warn); }
+  .empty { color:var(--dim); padding:30px 0; text-align:center; }
+  .toggle { color:var(--dim); cursor:pointer; user-select:none; margin-left:auto; }
+  footer { color:var(--dim); padding:6px 16px; border-top:1px solid var(--line); position:fixed; bottom:0; left:0; right:0; background:var(--bg); display:flex; gap:16px; }
+  a { color:var(--acc); text-decoration:none; }
+</style>
+</head>
+<body>
+<header>
+  <h1>Reqlane</h1>
+  <div id="agents"></div>
+  <span class="toggle" id="showClosed">show closed</span>
+</header>
+<main id="main"><div class="empty">loading…</div></main>
+<footer><span id="status">connecting…</span><span id="feed"></span></footer>
+<script>
+const token = new URLSearchParams(location.search).get("token") || "";
+const STAGES_FULL = ["open","discussion","proposal","implementation","evaluation","done"];
+const STAGE_MAP = { open:"open", discussion:"discussion", triage:"discussion", review:"discussion", in_review:"discussion",
+  proposal:"proposal", implementation:"implementation", evaluation:"evaluation", answered:"evaluation",
+  closed:"done", acknowledged:"done", declined:"declined", withdrawn:"withdrawn", wont_do:"wont_do", blocked:"blocked",
+  local:"local", deliberation:"deliberation" };
+let showClosed = false;
+function esc(s){ return String(s ?? "").replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c])); }
+function age(ts){ if(!ts) return ""; const d=(Date.now()-Date.parse(ts))/1000; if(d<90) return "now"; if(d<3600) return Math.floor(d/60)+"m"; if(d<86400) return Math.floor(d/3600)+"h"; return Math.floor(d/86400)+"d"; }
+function stagesFor(r){
+  if (r.type === "decision") return ["asked","deliberation","decided"];
+  if (r.type === "question" || r.type === "review") return ["open","discussion","answered","done"];
+  if (r.type === "notice") return ["sent","acknowledged"];
+  if (r.type === "bug" || r.type === "change") return ["open","discussion","implementation","evaluation","done"];
+  return STAGES_FULL;
+}
+function currentStage(r){
+  if (r.type === "decision") return r.status === "closed" ? "decided" : (r.status === "deliberation" ? "deliberation" : "asked");
+  if (r.type === "notice") return r.status === "acknowledged" ? "acknowledged" : "sent";
+  if (r.type === "question" || r.type === "review") return r.status === "answered" ? "answered" : (STAGE_MAP[r.status] || r.status);
+  const s = STAGE_MAP[r.status] || r.status;
+  if (r.type === "bug" || r.type === "change") return s === "proposal" ? "discussion" : s;
+  return s;
+}
+function stageBar(r){
+  const stages = stagesFor(r), cur = currentStage(r), terminalBad = ["declined","withdrawn","wont_do"].includes(cur);
+  const idx = stages.indexOf(cur);
+  let html = '<div class="stages">';
+  stages.forEach((s,i) => {
+    let cls = "st";
+    if (terminalBad) cls += i < stages.length-1 && i <= (r.resume_status ? 1 : 0) ? " past" : "";
+    else if (cur === "blocked" || cur === "local") cls += i < stages.indexOf(r.resume_status ? (STAGE_MAP[r.resume_status]||"discussion") : "discussion") ? " past" : (i === stages.indexOf(r.resume_status ? (STAGE_MAP[r.resume_status]||"discussion") : "discussion") ? " wait" : "");
+    else if (i < idx) cls += " past";
+    else if (i === idx) cls += (s === "done" || s === "decided" || s === "acknowledged") ? " done" : " now";
+    html += `<span class="${cls}">${s === "done" ? "✓ done" : s}</span>`;
+  });
+  if (terminalBad) html += `<span class="st bad" style="margin-left:14px">${cur}</span>`;
+  if (cur === "blocked") html += `<span class="st wait" style="margin-left:14px">blocked → waiting for decision</span>`;
+  if (cur === "local") html += `<span class="st wait" style="margin-left:14px">local: with ${esc(r.routed_to)} — user answers in chat or hands over</span>`;
+  html += "</div>";
+  return html;
+}
+function artLine(a){
+  const d = a.data || {};
+  if (a.type === "proposal") return `<span class="k">proposal</span> ${esc(a.title)} — options: ${(d.options||[]).map(o=>esc(o.id)).join(", ")}${d.recommended ? " (recommends "+esc(d.recommended)+")" : ""}`;
+  if (a.type === "delivery") return `<span class="k">delivery</span> ${esc(d.repo||"")}@${esc(d.commit||d.branch||"")} · tests ${esc((d.tests||{}).result||"?")}`;
+  if (a.type === "evaluation") return `<span class="k">evaluation</span> <span class="${d.verdict==="accepted"?"ok":"bad"}">${esc(d.verdict)}</span> — ${esc(a.title)}`;
+  if (a.type === "decision") return `<span class="po">decision</span> option ${esc(d.option||"-")} by ${esc(d.author)}${d.attested===false?' <span class="bad">(unattested)</span>':""} — ${esc(d.reason||"")}`;
+  return `<span class="k">${esc(a.type)}</span> ${esc(a.title)}`;
+}
+function render(data){
+  const ag = data.agents || [];
+  document.getElementById("agents").innerHTML = ag.map(a =>
+    `<span class="agent"><span class="dot ${a.sessions.length?'on':''}"></span><b class="${a.kind==='product_owner'?'po-badge':''}">${esc(a.id)}</b>${a.sessions.length? '· '+esc(a.sessions.map(s=>s.name||s.id).join(', ')) : '· offline'}</span>`).join(" ");
+  const byId = {}; (data.requests||[]).forEach(r => byId[r.id] = r);
+  const roots = (data.requests||[]).filter(r => !r.parent_id || !byId[r.parent_id]);
+  const closedSet = new Set(["closed","declined","withdrawn","acknowledged","wont_do"]);
+  const shown = roots.filter(r => showClosed || !closedSet.has(r.status));
+  const main = document.getElementById("main");
+  if (!shown.length) { main.innerHTML = '<div class="empty">no requests' + (roots.length ? ' open (toggle "show closed")' : '') + '</div>'; return; }
+  main.innerHTML = shown.map(r => reqCard(r, byId, data)).join("");
+}
+function reqCard(r, byId, data, depth=0){
+  const done = ["closed","declined","withdrawn","acknowledged","wont_do"].includes(r.status);
+  const kids = (data.requests||[]).filter(k => k.parent_id === r.id);
+  const arts = (r.artifacts||[]);
+  let html = `<div class="req ${done?'done':''}">
+    <div class="head"><span class="id">${esc(r.id)}</span><span class="type">${esc(r.type)}</span>
+      <span class="who"><b>${esc(r.from_agent)}</b> → <b>${esc(r.to_agent)}</b></span>
+      <span class="title">${esc(r.title)}</span>
+      ${r.blocking?'<span class="flag">blocking</span>':''}
+      ${r.actor && !done ? `<span class="actor">→ ${esc(r.actor)}</span>` : ''}
+      <span class="age">${age(r.updated_at)}</span></div>
+    ${stageBar(r)}`;
+  const leaves = [];
+  if (r.messages_count) leaves.push(`<div class="leaf">${r.messages_count} message${r.messages_count>1?'s':''}${r.last_message_from?' · last from <b>'+esc(r.last_message_from)+'</b>':''}</div>`);
+  arts.forEach(a => leaves.push(`<div class="leaf">${artLine(a)}</div>`));
+  kids.forEach(k => leaves.push(reqCard(k, byId, data, depth+1)));
+  if (leaves.length) html += `<div class="tree">${leaves.join("")}</div>`;
+  return html + "</div>";
+}
+async function tick(){
+  try {
+    const r = await fetch("/ui/data?token=" + encodeURIComponent(token));
+    if (!r.ok) { document.getElementById("status").textContent = "auth failed (" + r.status + ") — open via `reqlane ui`"; return; }
+    const data = await r.json();
+    render(data);
+    document.getElementById("status").textContent = "live · " + new Date().toLocaleTimeString() + " · po " + (data.po_present ? "present" : "absent");
+    const ev = data.recent_events || [];
+    document.getElementById("feed").textContent = ev.slice(-3).map(e => `#${e.id} ${e.type} ${e.request_id||""}`).join("   ");
+  } catch (e) { document.getElementById("status").textContent = "daemon unreachable"; }
+}
+document.getElementById("showClosed").onclick = () => { showClosed = !showClosed; document.getElementById("showClosed").textContent = showClosed ? "hide closed" : "show closed"; tick(); };
+tick(); setInterval(tick, 3000);
+</script>
+</body>
+</html>

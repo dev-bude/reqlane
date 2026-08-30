@@ -14,7 +14,9 @@ from typing import Any
 
 from fastapi import Depends, FastAPI, Header, HTTPException, Request
 from fastapi.concurrency import run_in_threadpool
-from fastapi.responses import JSONResponse, StreamingResponse
+from pathlib import Path
+
+from fastapi.responses import HTMLResponse, JSONResponse, StreamingResponse
 
 from .. import PROTOCOL_VERSION, __version__, config
 from ..core import cards
@@ -306,6 +308,19 @@ def create_app(service: Service | None = None, api_token: str | None = None, hum
     @app.get("/search", dependencies=[Depends(bearer)])
     def search(q: str, scope: str = "all", limit: int = 20):
         return {"results": svc.search(q, scope, limit)}
+
+    # ---- web UI (localhost; the page carries the daemon token as a query parameter)
+    ui_html = (Path(__file__).with_name("ui.html")).read_text(encoding="utf-8")
+
+    @app.get("/ui", response_class=HTMLResponse)
+    def ui():
+        return ui_html
+
+    @app.get("/ui/data")
+    def ui_data(token: str = ""):
+        if not hmac.compare_digest(token, api_token):
+            raise HTTPException(401, {"error": "bad token", "code": "unauthorized", "hint": "open the UI with `reqlane ui`"})
+        return svc.overview()
 
     @app.post("/admin/tick", dependencies=[Depends(bearer)])
     def tick():

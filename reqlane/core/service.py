@@ -687,6 +687,17 @@ class Service:
                 "open": [r for r in open_ if r["type"] not in ("decision", "notice") and not r["blocking"]], "agreements_pending_ack": pending_ack,
                 "unattested_decisions": unattested, "agents": self.list_agents(), "policy": self.get_policy(po)}
 
+    def overview(self, limit: int = 200) -> dict:
+        """Everything the UI needs in one call: agents, requests (incl. closed) with artifact and message summaries."""
+        reqs = self.list_requests("*", "all", limit=limit, open_only=False)
+        for r in reqs:
+            r["artifacts"] = self._all("SELECT id, type, title, author_agent, data, created_at FROM artifacts WHERE request_id=? ORDER BY id", r["id"])
+            row = self.conn.execute("SELECT COUNT(*), MAX(id) FROM messages WHERE request_id=? AND type!='system'", (r["id"],)).fetchone()
+            r["messages_count"] = row[0]
+            r["last_message_from"] = self._last_message_from(r["id"])
+        events = self._all("SELECT id, type, request_id, agent_id, created_at FROM events ORDER BY id DESC LIMIT 10")[::-1]
+        return {"agents": self.list_agents(), "requests": reqs, "recent_events": events, "po_present": self.po_present()}
+
     def get_policy(self, po: str) -> dict:
         p = self._one("SELECT policy FROM policies WHERE agent_id=?", po)
         return p["policy"] if p else {"mode": "hybrid", "auto_decide": ["priority", "clarification"],

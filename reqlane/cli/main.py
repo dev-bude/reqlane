@@ -153,6 +153,18 @@ def status():
 
 
 @app.command()
+def ui(no_browser: bool = typer.Option(False, "--no-browser", help="Only print the URL.")):
+    """Open the live request tree in the browser."""
+    import webbrowser
+    c = Client()
+    c.get("/health")
+    url = f"{c.base_url}/ui?token={config.token()}"
+    typer.echo(url)
+    if not no_browser:
+        webbrowser.open(url)
+
+
+@app.command()
 @guard
 def tick():
     """Run the timers now (session expiry, local→PO promotion)."""
@@ -176,7 +188,7 @@ def connect(agent: Optional[str] = typer.Argument(None, help="Agent id. Omit to 
     existing = find_session(cwd, name, exact=True)
     c = Client(human=human_token_if_human())
     res = c.post("/sessions/connect", agent=agent, kind=kind, cwd=str(cwd), name=name, runtime=runtime,
-                 runtime_ref=name or os.environ.get("REQLANE_RUNTIME_REF"), pid=os.getppid(), depends_on=csv(depends_on), description=description)
+                 runtime_ref=os.environ.get("REQLANE_RUNTIME_REF") or claude_session_name() or name, pid=os.getppid(), depends_on=csv(depends_on), description=description)
     ses = res["session"]
     save_session(cwd, name, {"token": res["token"], "agent": ses["agent_id"], "session_id": ses["id"], "hook_cursor": res["cursor"]})
     who = res["who"]
@@ -249,7 +261,7 @@ def inbox():
 @app.command()
 @guard
 def wait(req: Optional[str] = typer.Option(None, "--req", help="Wait for events on this request only."),
-         timeout: int = typer.Option(300, help="Seconds (max 600).")):
+         timeout: int = typer.Option(600, help="Seconds (max 600).")):
     """Block until an event arrives for you (long-poll). Exit 7 on timeout. Nothing wakes you afterwards — tell the user."""
     c, _ = client()
     res = c.get("/events", request_id=req, wait=min(timeout, 600))
@@ -804,6 +816,26 @@ def _exe_hint() -> str:
     return f'[reqlane] `reqlane` is not on PATH in this shell; call it as "{inst.aw_executable()}" (same arguments).'
 
 
+def claude_session_name() -> str | None:
+    """Name of the current Claude Code session (the address for cross-session messages), if any."""
+    import shutil
+    import subprocess
+    sid = os.environ.get("CLAUDE_CODE_SESSION_ID")
+    if not sid:
+        return None
+    exe = os.environ.get("CLAUDE_CODE_EXECPATH") or shutil.which("claude")
+    if not exe:
+        return None
+    try:
+        out = subprocess.run([exe, "agents", "--json"], capture_output=True, text=True, timeout=8).stdout
+        for a in json.loads(out or "[]"):
+            if a.get("sessionId") == sid:
+                return a.get("name")
+    except Exception:  # noqa: BLE001
+        return None
+    return None
+
+
 def _slug(name: str) -> str:
     import re as _re
     s = _re.sub(r"[^a-z0-9_.-]+", "-", name.lower()).strip("-.")
@@ -854,13 +886,13 @@ def _human_command(argv: list[str]) -> bool:
             name = _slug(name or ("po" if kind == "po" else cwd.name))
             runtime = "claude-code"
             c = Client(human=human)
-            res = c.post("/sessions/connect", agent=name, kind=kind, cwd=str(cwd), name=None, runtime=runtime, runtime_ref=None,
+            res = c.post("/sessions/connect", agent=name, kind=kind, cwd=str(cwd), name=None, runtime=runtime, runtime_ref=claude_session_name(),
                          pid=os.getppid(), depends_on=deps, description=None)
             ses = res["session"]
             save_session(cwd, None, {"token": res["token"], "agent": ses["agent_id"], "session_id": ses["id"], "hook_cursor": res["cursor"]})
             who = res["who"]
-            out.append(f"[reqlane] connected by the user: this session is agent **{who['agent']}** ({who['kind']}), session {ses['id']}. "
-                       f"PO: {'present' if res['po_present'] else 'absent'}.")
+            out.append(f"[reqlane] connected by the user: this session is agent **{who['agent']}** ({who['kind']}), session {ses['id']}"
+                       f"{(' (Claude session ' + ses['runtime_ref'] + ')') if ses.get('runtime_ref') else ''}. PO: {'present' if res['po_present'] else 'absent'}.")
             if who["kind"] != "product_owner":
                 out.append(f"repos: {', '.join(who['repos'])}  depends_on: {', '.join(who['depends_on']) or '-'}  consumers: {', '.join(who['consumers']) or '-'}")
             out.append("Do NOT run `reqlane connect` yourself — it is done. Tell the user in one line, then follow the card below.")
@@ -875,6 +907,13 @@ def _human_command(argv: list[str]) -> bool:
             else:
                 res = Client(human=human).post(f"/agents/{ses['agent']}", depends_on=csv(" ".join(args).replace(" ", ",")))
                 out.append(f"[reqlane] {ses['agent']} now depends on: {', '.join(res['depends_on']) or '-'}. Tell the user; nothing else to do.")
+        elif cmd == "ui":
+            import webbrowser
+            c = Client(human=human)
+            c.get("/health")
+            url = f"{c.base_url}/ui?token={config.token()}"
+            webbrowser.open(url)
+            out.append(f"[reqlane] UI opened in the browser: {url} . Tell the user; nothing else to do.")
         elif cmd == "status":
             c = Client(autostart=False)
             if not daemon_alive(c.base_url):
@@ -914,7 +953,7 @@ def hook_prompt():
     prompt = (data.get("prompt") or "").strip()
     if prompt.startswith("/reqlane"):
         argv = prompt.split()[1:]
-        if argv and argv[0] in ("start", "connect", "po", "depends", "status", "disconnect", "stop") and _human_command(argv):
+        if argv and argv[0] in ("start", "connect", "po", "depends", "status", "disconnect", "stop", "ui") and _human_command(argv):
             return
     ses = find_session()
     if not ses:

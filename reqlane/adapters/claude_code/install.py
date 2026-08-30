@@ -29,7 +29,7 @@ description: Reqlane shortcuts — connect this session, read the inbox, create 
 ## Handled by the user's hook — do NOT run anything for these
 
 `/reqlane start`, `/reqlane connect [name] [--depends-on a,b]`, `/reqlane po`, `/reqlane depends a,b`,
-`/reqlane status`, `/reqlane disconnect` are executed by the `UserPromptSubmit` hook with the
+`/reqlane status`, `/reqlane ui`, `/reqlane disconnect` are executed by the `UserPromptSubmit` hook with the
 user's own authority before you see them. Their result is already in your context as a
 `[reqlane] …` block. Your only job: tell the user in one line what happened (e.g. "Connected as
 agent gridlib; PO absent; inbox empty") and, if a protocol card was printed, follow it from now on.
@@ -42,6 +42,7 @@ The rules are the protocol card (printed at connect / session start; `reqlane pr
 If `reqlane` is not on PATH, use the full path given in the `[reqlane]` line.
 
 - `/reqlane inbox` → `reqlane inbox`. Blocking first.
+- `/reqlane wait` → `reqlane wait` (blocks up to 10 min until something happens), then act on it.
 - `/reqlane request <agent>` → collect title, goal, constraints, acceptance, code refs from the
   conversation (ask only for what is missing), then `reqlane req new --to <agent> --type ... --body -`.
 - `/reqlane ask <agent> <text>` → `reqlane req new --to <agent> --type question --title "<short>" --body -`.

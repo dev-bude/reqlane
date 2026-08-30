@@ -30,6 +30,7 @@ def create_app(service: Service | None = None, api_token: str | None = None, hum
     human_token = human_token if human_token is not None else config.human_token()
     app = FastAPI(title="Reqlane", version=__version__)
     app.state.service = svc
+    started_at = time.time()
     cond = asyncio.Condition()
     loop_ref: dict[str, asyncio.AbstractEventLoop | None] = {"loop": None}
 
@@ -326,7 +327,19 @@ def create_app(service: Service | None = None, api_token: str | None = None, hum
     def ui_data(token: str = ""):
         if not hmac.compare_digest(token, api_token):
             raise HTTPException(401, {"error": "bad token", "code": "unauthorized", "hint": "open the UI with `reqlane ui`"})
-        return svc.overview()
+        import os
+        data = svc.overview()
+        reqs = data["requests"]
+        open_ = [r for r in reqs if r["status"] not in ("closed", "declined", "withdrawn", "acknowledged", "wont_do")]
+        data["workspace"] = {
+            "version": __version__, "protocol": PROTOCOL_VERSION, "port": config.port(), "pid": os.getpid(),
+            "uptime_s": int(time.time() - started_at), "db": str(config.db_path()), "home": str(config.home()),
+            "sessions_online": sum(len(a["sessions"]) for a in data["agents"]), "agents": len(data["agents"]),
+            "open": len(open_), "blocking": sum(1 for r in open_ if r["blocking"]),
+            "awaiting_decision": sum(1 for r in open_ if r["type"] == "decision"),
+            "last_event_at": data["recent_events"][-1]["created_at"] if data["recent_events"] else None,
+        }
+        return data
 
     @app.post("/admin/shutdown", dependencies=[Depends(bearer)])
     def shutdown():

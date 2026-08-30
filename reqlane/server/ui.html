@@ -44,6 +44,10 @@
   .actor { color:var(--warn); }
   .empty { color:var(--dim); padding:30px 0; text-align:center; }
   .toggle { color:var(--acc); cursor:pointer; user-select:none; border:1px solid var(--line); border-radius:12px; padding:2px 8px; }
+  #ws { display:flex; flex-wrap:wrap; gap:6px 18px; padding:8px 16px; border-bottom:1px solid var(--line); color:var(--dim); background:#12151b; }
+  #ws b { color:var(--fg); font-weight:600; }
+  #ws .on { color:var(--ok); } #ws .off { color:var(--bad); } #ws .warn { color:var(--warn); }
+  #banner { display:none; padding:10px 16px; background:#3a1518; color:#ffb3b8; border-bottom:1px solid var(--bad); }
   footer { color:var(--dim); padding:6px 16px; border-top:1px solid var(--line); position:fixed; bottom:0; left:0; right:0; background:var(--bg); display:flex; gap:16px; }
   a { color:var(--acc); text-decoration:none; }
 </style>
@@ -54,6 +58,8 @@
   <div id="agents"></div>
   <span class="toggle" id="showClosed">hide closed</span>
 </header>
+<div id="banner"></div>
+<div id="ws">workspace: connecting…</div>
 <main id="main"><div class="empty">loading…</div></main>
 <footer><span id="status">connecting…</span><span id="feed"></span></footer>
 <script>
@@ -107,7 +113,20 @@ function artLine(a){
   if (a.type === "decision") return `<span class="po">decision</span> option ${esc(d.option||"-")} by ${esc(d.author)}${d.attested===false?' <span class="bad">(unattested)</span>':""} — ${esc(d.reason||"")}`;
   return `<span class="k">${esc(a.type)}</span> ${esc(a.title)}`;
 }
+function fmtUptime(s){ if(s==null) return "?"; if(s<60) return s+"s"; if(s<3600) return Math.floor(s/60)+"m"; if(s<86400) return Math.floor(s/3600)+"h "+Math.floor(s%3600/60)+"m"; return Math.floor(s/86400)+"d "+Math.floor(s%86400/3600)+"h"; }
+function renderWs(w, po){
+  if(!w){ document.getElementById("ws").innerHTML = "workspace: <span class='off'>unknown</span>"; return; }
+  document.getElementById("ws").innerHTML =
+    `<span>daemon <span class="on">● running</span> v${esc(w.version)} · :${w.port} · pid ${w.pid} · up ${fmtUptime(w.uptime_s)}</span>` +
+    `<span>product owner: <span class="${po?'on':'warn'}">${po?'present':'absent'}</span></span>` +
+    `<span>agents: <b>${w.agents}</b> · sessions online: <b>${w.sessions_online}</b></span>` +
+    `<span>open: <b>${w.open}</b> · blocking: <b class="${w.blocking?'warn':''}">${w.blocking}</b> · awaiting decision: <b class="${w.awaiting_decision?'warn':''}">${w.awaiting_decision}</b></span>` +
+    `<span>last event: ${w.last_event_at ? age(w.last_event_at)+' ago' : '—'}</span>` +
+    `<span title="${esc(w.db)}">db: ${esc(w.home)}</span>`;
+}
+function setBanner(msg){ const b=document.getElementById("banner"); b.style.display = msg ? "block" : "none"; b.textContent = msg||""; }
 function render(data){
+  renderWs(data.workspace, data.po_present);
   const ag = data.agents || [];
   document.getElementById("agents").innerHTML = ag.map(a =>
     `<span class="agent"><span class="dot ${a.sessions.length?'on':''}"></span><b class="${a.kind==='product_owner'?'po-badge':''}">${esc(a.id)}</b>${a.sessions.length? '· '+esc(a.sessions.map(s=>s.name||s.id).join(', ')) : '· offline'}</span>`).join(" ");
@@ -143,13 +162,18 @@ function reqCard(r, byId, data, depth=0){
 async function tick(){
   try {
     const r = await fetch("/ui/data?token=" + encodeURIComponent(token));
-    if (!r.ok) { document.getElementById("status").textContent = "auth failed (" + r.status + ") — open via `reqlane ui`"; return; }
+    if (!r.ok) { setBanner("auth failed (" + r.status + ") — open the page via `reqlane ui` / `/reqlane ui`"); document.getElementById("status").textContent = "auth failed"; return; }
     const data = await r.json();
+    setBanner("");
     render(data);
     document.getElementById("status").textContent = "live · " + new Date().toLocaleTimeString() + " · po " + (data.po_present ? "present" : "absent");
     const ev = data.recent_events || [];
     document.getElementById("feed").textContent = ev.slice(-3).map(e => `#${e.id} ${e.type} ${e.request_id||""}`).join("   ");
-  } catch (e) { document.getElementById("status").textContent = "daemon unreachable"; }
+  } catch (e) {
+    setBanner("Workspace daemon is not reachable on this port. Any `reqlane` command (or `/reqlane start` in a Claude session) starts it; this page keeps retrying.");
+    document.getElementById("ws").innerHTML = "daemon <span class='off'>● stopped</span>";
+    document.getElementById("status").textContent = "daemon unreachable · retrying";
+  }
 }
 document.getElementById("showClosed").onclick = () => { showClosed = !showClosed; document.getElementById("showClosed").textContent = showClosed ? "hide closed" : "show closed"; tick(); };
 tick(); setInterval(tick, 3000);

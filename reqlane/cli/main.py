@@ -839,7 +839,8 @@ def claude_session_name() -> str | None:
     if not exe:
         return None
     try:
-        out = subprocess.run([exe, "agents", "--json"], capture_output=True, text=True, timeout=8).stdout
+        from ..client.http import no_window
+        out = subprocess.run([exe, "agents", "--json"], capture_output=True, text=True, timeout=8, stdin=subprocess.DEVNULL, **no_window()).stdout
         for a in json.loads(out or "[]"):
             if a.get("sessionId") == sid:
                 return a.get("name")

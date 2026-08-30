@@ -1,6 +1,6 @@
 [project]
 name = "reqlane"
-version = "0.1.0"
+dynamic = ["version"]
 description = "Requests between AI coding agents that own different repositories, with consumer acceptance and owner escalation"
 requires-python = ">=3.12"
 dependencies = ["fastapi>=0.110", "uvicorn>=0.29", "typer>=0.12", "httpx>=0.27"]
@@ -17,6 +17,9 @@ reqlane = "reqlane.cli.main:app"
 [build-system]
 requires = ["setuptools>=68"]
 build-backend = "setuptools.build_meta"
+
+[tool.setuptools.dynamic]
+version = {attr = "reqlane.__version__"}
 
 [tool.setuptools.packages.find]
 include = ["reqlane*"]

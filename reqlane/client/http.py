@@ -82,6 +82,14 @@ def drop_session(data: dict) -> None:
     Path(data["_file"]).unlink(missing_ok=True)
 
 
+# ---------------------------------------------------------------- subprocesses without console windows
+def no_window() -> dict:
+    """Popen/run kwargs that keep Windows from opening a console window for child processes."""
+    if sys.platform == "win32":
+        return {"creationflags": getattr(subprocess, "CREATE_NO_WINDOW", 0x08000000)}
+    return {}
+
+
 # ---------------------------------------------------------------- daemon
 def daemon_alive(url: str, timeout: float = 0.5) -> bool:
     try:
@@ -106,7 +114,7 @@ def kill_daemon_process() -> None:
             if sys.platform == "win32":
                 out = subprocess.run(["powershell", "-NoProfile", "-Command",
                                       f"Get-NetTCPConnection -LocalPort {port} -State Listen -ErrorAction SilentlyContinue | Select-Object -ExpandProperty OwningProcess"],
-                                     capture_output=True, text=True, timeout=15).stdout
+                                     capture_output=True, text=True, timeout=15, **no_window()).stdout
                 pids += [int(x) for x in out.split() if x.strip().isdigit()]
             else:
                 out = subprocess.run(["lsof", "-t", f"-iTCP:{port}", "-sTCP:LISTEN"], capture_output=True, text=True, timeout=5).stdout
@@ -116,7 +124,7 @@ def kill_daemon_process() -> None:
     for pid in set(pids):
         try:
             if sys.platform == "win32":
-                subprocess.run(["taskkill", "/PID", str(pid), "/F"], capture_output=True, timeout=5)
+                subprocess.run(["taskkill", "/PID", str(pid), "/F"], capture_output=True, timeout=5, **no_window())
             else:
                 os.kill(pid, signal.SIGTERM)
         except (OSError, subprocess.SubprocessError):
@@ -131,7 +139,7 @@ def start_daemon(url: str, wait: float = 8.0) -> bool:
     with open(log, "ab") as logf:
         kw: dict = {"stdout": logf, "stderr": subprocess.STDOUT, "stdin": subprocess.DEVNULL, "env": env, "close_fds": True}
         if sys.platform == "win32":
-            kw["creationflags"] = subprocess.CREATE_NEW_PROCESS_GROUP | getattr(subprocess, "DETACHED_PROCESS", 0x8)
+            kw["creationflags"] = subprocess.CREATE_NEW_PROCESS_GROUP | getattr(subprocess, "DETACHED_PROCESS", 0x8) | getattr(subprocess, "CREATE_NO_WINDOW", 0x08000000)
         else:
             kw["start_new_session"] = True
         subprocess.Popen([sys.executable, "-m", "reqlane.server.run"], **kw)

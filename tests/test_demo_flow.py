@@ -1,4 +1,4 @@
-"""The demo scenario (docs/demo_scenario.md) and the P0 rules, driven through the HTTP API."""
+"""The walkthrough flow (WALKTHROUGH.md) and the rules, driven through the HTTP API."""
 from __future__ import annotations
 
 import os

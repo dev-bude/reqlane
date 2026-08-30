@@ -27,8 +27,9 @@ context and tools. Reqlane owns requests, messages, artifacts, decisions and eve
 - If no Product Owner session is present, a product question stays in the chat of the agent
   that needs it, with the option to hand it over to the PO later.
 
-Status: pre-release. Local mode works end to end (see [examples/](examples/)); no MCP surface,
-no CI/ephemeral mode, no UI yet. Code: Apache-2.0.
+Status: pre-release. Local mode works end to end — see [WALKTHROUGH.md](WALKTHROUGH.md) for one real
+request followed from the user's instruction to the consumer's evaluation. No MCP surface, no
+CI/ephemeral mode yet. Code: Apache-2.0.
 
 ## Install
 
@@ -110,6 +111,12 @@ every command accepts `--json`. Exit codes: 0 ok, 2 bad arguments, 3 not connect
 State lives in `~/.reqlane/` (`REQLANE_HOME`); port 7771 (`REQLANE_PORT`). Trust model and data
 notes: [SECURITY.md](SECURITY.md).
 
+## Reading on
+
+- [WALKTHROUGH.md](WALKTHROUGH.md) — how a request flows, step by step, with real output.
+- [PROTOCOL.md](PROTOCOL.md) — lifecycle, roles, artifacts, mapping to A2A / MCP Tasks.
+- [SECURITY.md](SECURITY.md) — trust model, data, what the adapter writes.
+
 ## Layout
 
 ```
@@ -118,8 +125,7 @@ reqlane/server    FastAPI daemon: HTTP API, async long-poll and SSE events
 reqlane/client    HTTP client, session files, human principal, daemon autostart
 reqlane/cli       typer CLI + text rendering (quotes and sanitizes other agents' text)
 reqlane/adapters  claude_code: install/uninstall, skill, hooks
-examples/         two tiny projects + product notes: a complete walkthrough
-tests/            the walkthrough and the rules, through the API
+tests/            the walkthrough's flow and the rules, through the API
 ```
 
 Tests: `python -m pytest -q`.

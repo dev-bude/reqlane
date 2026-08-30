@@ -184,10 +184,12 @@ def test_local_decision_unattested_vs_attested_and_timeout(api, tmp_path, monkey
 def test_state_machine_rules(api, tmp_path):
     x_dir, y_dir, z_dir = mkdirs(tmp_path, "x", "y", "z")
     x, y, z = connect(api, "x", x_dir), connect(api, "y", y_dir), connect(api, "z", z_dir)
+    assert ok(api.get("/whoami", headers=H(x)))["depends_on"] == []
     # question: answer -> answered -> close by initiator; idempotency
     q = ok(api.post("/requests", headers=H(x), json={"to": "y", "type": "question", "title": "Does it?", "idem": "k1"}))
     assert ok(api.post("/requests", headers=H(x), json={"to": "y", "type": "question", "title": "Does it?", "idem": "k1"}))["duplicate"]
     qid = q["request"]["id"]
+    assert ok(api.get("/whoami", headers=H(x)))["depends_on"] == ["y"]  # inferred from the request
     assert ok(api.post(f"/requests/{qid}/messages", headers=H(y), json={"body": "Yes", "type": "answer"}))["request"]["status"] == "answered"
     assert api.post(f"/requests/{qid}/action", headers=H(y), json={"action": "reassign", "to": "z"}).status_code == 409  # not in open/discussion
     ok(api.post(f"/requests/{qid}/action", headers=H(x), json={"action": "close"}))
@@ -205,10 +207,9 @@ def test_state_machine_rules(api, tmp_path):
     b = ok(api.post("/requests", headers=H(x), json={"to": "y", "type": "bug", "title": "crash"}))["request"]["id"]
     assert api.post(f"/requests/{b}/action", headers=H(y), json={"action": "reassign", "to": "x"}).status_code == 400
     assert ok(api.post(f"/requests/{b}/action", headers=H(y), json={"action": "reassign", "to": "z", "reason": "theirs"}))["request"]["to_agent"] == "z"
-    assert api.post("/requests", headers=H(y), json={"to": "x", "type": "notice", "title": "v2"}).status_code == 403  # x is not y's consumer
-    ok(api.post(f"/agents/y", headers=H(human=True), json={"depends_on": ["x"]}))
-    n = ok(api.post("/requests", headers=H(x), json={"to": "y", "type": "notice", "title": "v2 soon", "labels": ["breaking"]}))["request"]["id"]
-    assert ok(api.post(f"/requests/{n}/action", headers=H(y), json={"action": "ack"}))["request"]["status"] == "acknowledged"
+    assert api.post("/requests", headers=H(z), json={"to": "x", "type": "notice", "title": "v2"}).status_code == 403  # x is not z's consumer
+    n = ok(api.post("/requests", headers=H(y), json={"to": "x", "type": "notice", "title": "v2 soon", "labels": ["breaking"]}))["request"]["id"]  # x asked y earlier -> consumer
+    assert ok(api.post(f"/requests/{n}/action", headers=H(x), json={"action": "ack"}))["request"]["status"] == "acknowledged"
     # bug delivered directly from triage (no proposal needed)
     b2 = ok(api.post("/requests", headers=H(x), json={"to": "y", "type": "bug", "title": "crash2"}))["request"]["id"]
     ok(api.post(f"/requests/{b2}/claim", headers=H(y)))

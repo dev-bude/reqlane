@@ -344,6 +344,11 @@ class Service:
             req = self._req(rid)
             self._emit("request.created", "request", rid, self._audience(req), {"type": type_, "title": title, "from": me, "to": to, "blocking": blocking},
                        request_id=rid, agent_id=me, session_id=session["id"])
+            if type_ in ("question", "capability", "bug", "change", "review"):
+                # Asking another agent for something is the dependency; no need to declare it up front.
+                a_from = self._agent(me)
+                if a_from["kind"] == "project" and to not in a_from["depends_on"] and not self._is_po(to):
+                    self.conn.execute("UPDATE agents SET depends_on=? WHERE id=?", (j(a_from["depends_on"] + [to]), me))
             if type_ == "notice" and "breaking" in (labels or []) and self._po_id():
                 self._emit("notice.breaking", "request", rid, [self._po_id()], {"title": title, "from": me}, request_id=rid, agent_id=me)
             return {"request": req, "notify": self._notify_targets([to, *(cc or [])], session["id"]), "refs": refs}

@@ -18,7 +18,7 @@ Three terminals (or VS Code windows), each with Claude Code in one of the exampl
 
 | terminal | directory | in the chat |
 |---|---|---|
-| T1 | `examples/dashboard` | `/reqlane start`, then `/reqlane connect --depends-on gridlib` |
+| T1 | `examples/dashboard` | `/reqlane start`, then `/reqlane connect` |
 | T2 | `examples/gridlib` | `/reqlane connect` |
 | T3 | `examples/product` | `/reqlane po` — open this one only when the PO is needed |
 

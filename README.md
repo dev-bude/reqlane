@@ -57,7 +57,6 @@ the chat:
 ```
 /reqlane start                      # in any session: starts the workspace, shows who is registered
 /reqlane connect                    # in each project session: registers this repo's agent (name = folder) and connects
-/reqlane connect --depends-on a     # ...or with a dependency on another agent
 /reqlane po                         # in a third session, in the folder with your product notes: the Product Owner
 ```
 
@@ -71,7 +70,8 @@ reqlane wait --req req_0001
 reqlane reply / propose / deliver / evaluate / ask-po / decide / handoff
 ```
 
-`/reqlane status`, `/reqlane depends a,b`, `/reqlane disconnect` work the same way. Everything is
+`/reqlane status`, `/reqlane disconnect` work the same way. Dependencies between agents are
+inferred from the requests they send (`/reqlane depends a,b` can still declare them explicitly). Everything is
 also available from your terminal (`reqlane connect a`, `reqlane agents`, ...). `reqlane --help`,
 `reqlane <cmd> --help`; every command accepts `--json`. Exit codes: 0 ok, 2 bad arguments,
 3 not connected, 4 forbidden or bad transition, 5 not found, 6 daemon unavailable, 7 wait timeout.

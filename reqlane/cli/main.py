@@ -65,17 +65,32 @@ def emit(data: dict, text: str | None) -> None:
         typer.echo(text)
 
 
+def auto_reconnect() -> dict | None:
+    """No session file, but this folder belongs to a registered agent: reconnect silently (own repo, no human needed)."""
+    try:
+        c = Client(autostart=True)
+        sug = c.get("/agent-for-cwd", cwd=str(Path.cwd())).get("agent")
+        if not sug:
+            return None
+        rsid = runtime_session_id()
+        runtime = os.environ.get("REQLANE_RUNTIME") or ("claude-code" if os.environ.get("CLAUDECODE") else "cli")
+        res = c.post("/sessions/connect", agent=sug, kind="project", cwd=str(Path.cwd()), name=rsid, runtime=runtime,
+                     runtime_ref=claude_session_name(), pid=os.getppid(), depends_on=[], description=None)
+        s_ = res["session"]
+        save_session(Path.cwd(), rsid, {"token": res["token"], "agent": s_["agent_id"], "session_id": s_["id"], "hook_cursor": res["cursor"]})
+        typer.echo(f"[reqlane] reconnected as {s_['agent_id']} (session {s_['id']}); run `reqlane address \"NAME [ref]\"` (from ListAgents) if you have not yet.", err=True)
+        return find_session()
+    except ClientError:
+        return None
+
+
 def client(need_session: bool = True, human: bool = False) -> tuple[Client, dict | None]:
     ses = find_session()
     if need_session and not ses:
-        hint = "reqlane connect <agent>"
-        try:
-            sug = Client(autostart=True).get("/agent-for-cwd", cwd=str(Path.cwd())).get("agent")
-            if sug:
-                hint = f"reqlane connect {sug}"
-        except ClientError:
-            pass
-        fail(ClientError("this directory has no connected session", "not_connected", hint, 401))
+        ses = auto_reconnect()
+    if need_session and not ses:
+        fail(ClientError("this directory is not registered in Reqlane", "not_connected",
+                         "the user registers it by typing `/reqlane connect` (or `/reqlane po`) in the chat", 401))
     return Client(session_token=ses["token"] if ses else None, human=human_token_if_human() if human else None), ses
 
 

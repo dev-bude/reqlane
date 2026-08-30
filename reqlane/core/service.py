@@ -183,7 +183,7 @@ class Service:
                 self._agent(d)
             repos = [_norm(repo)]
             owner = self.agent_for_cwd(repo)
-            if owner and _norm(self._agent(owner)["repos"][0]) == repos[0]:
+            if owner and kind != "product_owner" and _norm(self._agent(owner)["repos"][0]) == repos[0]:
                 raise ServiceError(f"directory already belongs to agent '{owner}'", "conflict", 409)
             self.conn.execute("INSERT INTO agents(id, kind, display_name, repos, depends_on, description, created_at) VALUES(?,?,?,?,?,?,?)",
                               (agent_id, kind, agent_id, j(repos), j(depends_on or []), description, now()))
@@ -215,13 +215,17 @@ class Service:
             return self._agent(agent_id)
 
     def agent_for_cwd(self, cwd: str) -> str | None:
+        """Longest repository prefix wins; on a tie a project agent beats the PO (the PO is chosen explicitly)."""
         p = _norm(cwd)
-        best, best_len = None, -1
-        for a in self._all("SELECT id, repos FROM agents"):
+        best, best_len, best_kind = None, -1, ""
+        for a in self._all("SELECT id, kind, repos FROM agents"):
             for r in a["repos"]:
                 rp = _norm(r)
-                if (p == rp or p.startswith(rp.rstrip("/") + "/")) and len(rp) > best_len:
-                    best, best_len = a["id"], len(rp)
+                if not (p == rp or p.startswith(rp.rstrip("/") + "/")):
+                    continue
+                better = len(rp) > best_len or (len(rp) == best_len and best_kind == "product_owner" and a["kind"] != "product_owner")
+                if better:
+                    best, best_len, best_kind = a["id"], len(rp), a["kind"]
         return best
 
     def connect(self, agent_id: str | None, kind: str, cwd: str, name: str | None, runtime: str | None, runtime_ref: str | None,

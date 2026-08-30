@@ -42,6 +42,12 @@ def human_token_if_human() -> str | None:
 
 
 # ---------------------------------------------------------------- session files
+def runtime_session_id() -> str | None:
+    """Id of the surrounding runtime session (Claude Code sets CLAUDE_CODE_SESSION_ID for hooks and tools)."""
+    sid = os.environ.get("CLAUDE_CODE_SESSION_ID")
+    return sid[:12] if sid else None
+
+
 def _key(cwd: Path, name: str | None) -> str:
     h = hashlib.sha1(str(cwd.resolve()).lower().encode()).hexdigest()[:16]
     return f"{h}.{name}" if name else h
@@ -60,7 +66,7 @@ def save_session(cwd: Path, name: str | None, data: dict) -> Path:
 def find_session(cwd: Path | None = None, name: str | None = None, exact: bool = False) -> dict | None:
     """Session for cwd (walking up to parents unless exact); prefer REQLANE_SESSION name."""
     cwd = (cwd or Path.cwd()).resolve()
-    name = name or os.environ.get("REQLANE_SESSION") or None
+    name = name or os.environ.get("REQLANE_SESSION") or runtime_session_id() or None
     for p in [cwd] if exact else [cwd, *cwd.parents]:
         for cand in ([session_file(p, name)] if name else []) + [session_file(p, None)]:
             if cand.exists():

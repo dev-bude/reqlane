@@ -16,7 +16,7 @@ import typer
 
 from .. import PROTOCOL_VERSION, __version__, config
 from ..adapters.claude_code import install as inst
-from ..client.http import Client, ClientError, daemon_alive, drop_session, find_session, human_token_if_human, save_session, update_session
+from ..client.http import Client, ClientError, daemon_alive, drop_session, find_session, human_token_if_human, runtime_session_id, save_session, update_session
 from ..core import cards
 from . import fmt
 
@@ -183,7 +183,7 @@ def connect(agent: Optional[str] = typer.Argument(None, help="Agent id. Omit to 
             no_card: bool = typer.Option(False, "--no-card", help="Do not print the protocol card.")):
     """Connect this directory's session to an agent. First-time registration (repo = cwd) is done by the human."""
     cwd = Path.cwd()
-    name = name or os.environ.get("REQLANE_SESSION") or None
+    name = name or os.environ.get("REQLANE_SESSION") or runtime_session_id() or None
     runtime = os.environ.get("REQLANE_RUNTIME") or ("claude-code" if os.environ.get("CLAUDECODE") else "cli")
     existing = find_session(cwd, name, exact=True)
     c = Client(human=human_token_if_human())
@@ -808,10 +808,11 @@ def hook_session_start():
         if not sug:
             typer.echo("[reqlane] This repository is not registered in Reqlane. The user can type `/reqlane connect` to register it (or `/reqlane po` for the product owner).")
             return
-        res = c.post("/sessions/connect", agent=sug, kind="project", cwd=str(Path.cwd()), name=None, runtime="claude-code",
+        rsid = runtime_session_id()
+        res = c.post("/sessions/connect", agent=sug, kind="project", cwd=str(Path.cwd()), name=rsid, runtime="claude-code",
                      runtime_ref=claude_session_name(), pid=os.getppid(), depends_on=[], description=None)
         s_ = res["session"]
-        save_session(Path.cwd(), None, {"token": res["token"], "agent": s_["agent_id"], "session_id": s_["id"], "hook_cursor": res["cursor"]})
+        save_session(Path.cwd(), rsid, {"token": res["token"], "agent": s_["agent_id"], "session_id": s_["id"], "hook_cursor": res["cursor"]})
         ses = find_session(exact=True)
         typer.echo(f"[reqlane] Reconnected automatically as agent {s_['agent_id']} (session {s_['id']}). "
                    f"Call ListAgents and run `reqlane address \"NAME [ref]\"` with its `This session is …` line so others can wake you.")
@@ -924,10 +925,11 @@ def _human_command(argv: list[str]) -> bool:
             name = _slug(name or ("po" if kind == "po" else cwd.name))
             runtime = "claude-code"
             c = Client(human=human)
-            res = c.post("/sessions/connect", agent=name, kind=kind, cwd=str(cwd), name=None, runtime=runtime, runtime_ref=claude_session_name(),
+            rsid = runtime_session_id()
+            res = c.post("/sessions/connect", agent=name, kind=kind, cwd=str(cwd), name=rsid, runtime=runtime, runtime_ref=claude_session_name(),
                          pid=os.getppid(), depends_on=deps, description=None)
             ses = res["session"]
-            save_session(cwd, None, {"token": res["token"], "agent": ses["agent_id"], "session_id": ses["id"], "hook_cursor": res["cursor"]})
+            save_session(cwd, rsid, {"token": res["token"], "agent": ses["agent_id"], "session_id": ses["id"], "hook_cursor": res["cursor"]})
             who = res["who"]
             out.append(f"[reqlane] connected by the user: this session is agent **{who['agent']}** ({who['kind']}), session {ses['id']}"
                        f"{(' (Claude session ' + ses['runtime_ref'] + ')') if ses.get('runtime_ref') else ''}. PO: {'present' if res['po_present'] else 'absent'}.")

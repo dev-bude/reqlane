@@ -136,13 +136,19 @@ def start_daemon(url: str, wait: float = 8.0) -> bool:
         return True
     log = config.home() / "daemon.log"
     env = {k: v for k, v in os.environ.items() if not k.startswith("AW_HUMAN")}
+    exe = sys.executable
+    if sys.platform == "win32":
+        # pythonw.exe is a GUI-subsystem binary: it can never open a console window.
+        w = os.path.join(os.path.dirname(exe), "pythonw.exe")
+        if os.path.exists(w):
+            exe = w
     with open(log, "ab") as logf:
         kw: dict = {"stdout": logf, "stderr": subprocess.STDOUT, "stdin": subprocess.DEVNULL, "env": env, "close_fds": True}
         if sys.platform == "win32":
-            kw["creationflags"] = subprocess.CREATE_NEW_PROCESS_GROUP | getattr(subprocess, "DETACHED_PROCESS", 0x8) | getattr(subprocess, "CREATE_NO_WINDOW", 0x08000000)
+            kw["creationflags"] = subprocess.CREATE_NEW_PROCESS_GROUP | getattr(subprocess, "CREATE_NO_WINDOW", 0x08000000)
         else:
             kw["start_new_session"] = True
-        subprocess.Popen([sys.executable, "-m", "reqlane.server.run"], **kw)
+        subprocess.Popen([exe, "-m", "reqlane.server.run"], **kw)
     t0 = time.monotonic()
     while time.monotonic() - t0 < wait:
         if daemon_alive(url):

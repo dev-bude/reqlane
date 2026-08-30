@@ -33,48 +33,69 @@ no CI/ephemeral mode, no UI yet. Code: Apache-2.0.
 ## Install
 
 ```
+git clone <this repo> && cd reqlane
 python -m venv .venv
-.venv/bin/pip install -e .[dev]        # Windows: .venv\Scripts\python -m pip install -e .[dev]
-reqlane --version
+.venv/bin/pip install -e .          # Windows: .venv\Scripts\python -m pip install -e .
+.venv/bin/reqlane --version         # Windows: .venv\Scripts\reqlane --version
 ```
 
-Claude Code adapter — a 3-line pointer in `~/.claude/CLAUDE.md`, a `/reqlane` skill and hooks
-(`SessionStart`, `UserPromptSubmit`, `Stop`, `SessionEnd`). It shows what it will write and asks
-first; `reqlane uninstall` reverts it.
+Then install the Claude Code adapter (run it from the venv; it shows what it will write and asks):
 
 ```
 reqlane install --runtime claude-code --hooks
 ```
+
+That adds a 3-line pointer to `~/.claude/CLAUDE.md`, a `/reqlane` skill, and four hooks that call
+`reqlane` by its absolute path — so the agents do not need `reqlane` on PATH. Put `.venv/bin`
+(Windows: `.venv\Scripts`) on your own PATH for typing commands yourself; `reqlane uninstall`
+reverts the adapter.
 
 Other runtimes: `reqlane install --runtime codex --dir <project>` writes the card into `AGENTS.md`
 (`gemini` → `GEMINI.md`, `cursor` → `.cursorrules`); `reqlane protocol` prints it.
 
 ## First steps
 
-Open one Claude Code session per repository (two terminals or two VS Code windows) and type, in
-the chat:
+Open one Claude Code session per repository (VS Code windows or terminals). In the chat:
 
 ```
-/reqlane start                      # in any session: starts the workspace, shows who is registered
-/reqlane connect                    # in each project session: registers this repo's agent (name = folder) and connects
-/reqlane po                         # in a third session, in the folder with your product notes: the Product Owner
+/reqlane connect      # once per repository: registers this repo's agent (name = folder) and connects the session
+/reqlane po           # once, in the folder with your product notes: the Product Owner (optional)
+/reqlane ui           # opens the live request tree in the browser
 ```
 
-These commands are executed by the hook with **your** authority before the agent sees them —
-agents cannot register themselves. The agent receives the protocol card and works from there:
+These commands run in the hook with **your** authority before the agent sees them — agents cannot
+register themselves. From then on it is automatic: every new session, `/clear` or resume in a
+registered folder reconnects by itself, and the agent gets a short card: who else is in the
+workspace (agents, repositories, online/offline), how to ask them or order work, how to wait and
+how to wake the others. The first thing an agent does after connecting is record its own address
+(`reqlane address "NAME [ref]"`, from its ListAgents tool) so that other agents can wake it with a
+cross-session message; the daemon starts on demand and restarts itself after an upgrade.
+
+Then just work with the agents as usual. The workspace shows up when an agent needs something from
+another repository:
 
 ```
-reqlane inbox
-reqlane req new --to a --type capability --blocking --title "..." --goal "..." --body -
-reqlane wait --req req_0001
-reqlane reply / propose / deliver / evaluate / ask-po / decide / handoff
+reqlane req new --to gridlib --type capability --blocking --title "..." --goal "..." --body -
+reqlane wait --req req_0001          # the other agent is woken; this one waits for the answer
+reqlane propose / deliver / evaluate / ask-po / decide / handoff   (each reply prints `next:`)
 ```
 
-`/reqlane status`, `/reqlane disconnect` work the same way. Dependencies between agents are
-inferred from the requests they send (`/reqlane depends a,b` can still declare them explicitly). Everything is
-also available from your terminal (`reqlane connect a`, `reqlane agents`, ...). `reqlane --help`,
-`reqlane <cmd> --help`; every command accepts `--json`. Exit codes: 0 ok, 2 bad arguments,
-3 not connected, 4 forbidden or bad transition, 5 not found, 6 daemon unavailable, 7 wait timeout.
+`/reqlane status`, `/reqlane disconnect` work the same way; dependencies between agents are
+inferred from the requests they send. Everything is also available from your terminal
+(`reqlane agents`, `reqlane req show req_0001`, ...). `reqlane --help`, `reqlane <cmd> --help`;
+every command accepts `--json`. Exit codes: 0 ok, 2 bad arguments, 3 not connected,
+4 forbidden or bad transition, 5 not found, 6 daemon unavailable, 7 wait timeout.
+
+## When something looks stuck
+
+- An agent "went quiet": its turn ended before the answer arrived and nothing woke it. Type
+  `/reqlane inbox` in that session — the hook injects what is new and the agent continues. It
+  happens when the other side could not reach it (no address recorded yet, or the sessions are on
+  different machines); after `reqlane address` the wake-up is automatic.
+- `/reqlane status` in any session shows who is online; `reqlane agents` from the terminal too.
+- Two sessions in one folder: give the second one a name, `reqlane connect --session two`.
+- State lives in `~/.reqlane/` (`REQLANE_HOME`), port 7771 (`REQLANE_PORT`); delete the folder to
+  start from scratch (stop the daemon first: `reqlane status` shows it, `/admin/shutdown` or kill it).
 
 ## Principals
 

@@ -12,19 +12,22 @@ Three tiny "projects", each meant to be opened in its own agent session:
 
 Requirements: Python 3.12; `pytest` for the tests. No other dependencies.
 
-## 1. Open the sessions and connect (all from the chat)
+## 1. Open the sessions (all from the chat)
 
-Three terminals (or VS Code windows), each with Claude Code in one of the example folders:
+Three VS Code windows or terminals, each with Claude Code in one of the example folders:
 
-| terminal | directory | in the chat |
+| window | directory | in the chat, the first time only |
 |---|---|---|
-| T1 | `examples/dashboard` | `/reqlane start`, then `/reqlane connect` |
+| T1 | `examples/dashboard` | `/reqlane connect` |
 | T2 | `examples/gridlib` | `/reqlane connect` |
-| T3 | `examples/product` | `/reqlane po` — open this one only when the PO is needed |
+| T3 | `examples/product` | `/reqlane po` — the Product Owner; open it when you like |
 
-`/reqlane connect` registers the folder's agent (name = folder name) and connects the session with
-your authority; the agent only relays the result and receives the protocol card. Then tell the
-dashboard agent one thing:
+`/reqlane connect` registers the folder's agent (name = folder name) with your authority; the
+agent only relays the result. Afterwards every new session in these folders reconnects on its
+own and starts with the list of agents and the card. Watch the flow in the browser:
+`/reqlane ui` in any window.
+
+Then tell the dashboard agent one thing:
 
 > "A tick must fit in 50 ms. Figure it out."
 
@@ -50,8 +53,12 @@ dashboard agent one thing:
 6. dashboard integrates (`with self.grid.batch(): ...`), re-runs the benchmark (expect `renders=1`,
    tens of milliseconds) and closes the loop: `reqlane evaluate req_0001 --verdict accepted --body -`.
 
-`reqlane req show req_0001` then shows the whole chain: proposal → decision → delivery → evaluation.
-You intervened exactly twice: the initial instruction and the PO decision.
+`reqlane req show req_0001` (or the browser page) then shows the whole chain: proposal → decision →
+delivery → evaluation. You intervened exactly twice: the initial instruction and the PO decision.
+
+If an agent goes quiet before the answer arrived, type `/reqlane inbox` in its window — see
+"When something looks stuck" in the main README. To run the example again from scratch:
+`git checkout -- examples/` (the agents commit into this repository) and delete `~/.reqlane/`.
 
 ## Variations
 

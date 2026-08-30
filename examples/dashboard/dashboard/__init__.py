@@ -14,9 +14,7 @@ class MetricsView:
         self.grid = Grid(ROWS, COLS)
 
     def tick(self, t: int) -> None:
-        # Every cell changes every tick; batch() defers rendering to one
-        # _render() at block exit (gridlib >= 1.1.0).
-        with self.grid.batch():
-            for r in range(ROWS):
-                for c in range(COLS):
-                    self.grid.set(r, c, (r * COLS + c + t) % 997)
+        # Every cell changes every tick; each set() re-renders the whole grid.
+        for r in range(ROWS):
+            for c in range(COLS):
+                self.grid.set(r, c, (r * COLS + c + t) % 997)

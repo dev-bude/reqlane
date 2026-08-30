@@ -902,12 +902,18 @@ class Service:
             sql += " AND e.request_id=?"; args.append(request_id)
         if not include_own:
             sql += " AND (e.session_id IS NULL OR e.session_id!=?)"; args.append(session["id"])
+        sql += " AND NOT EXISTS(SELECT 1 FROM acks k WHERE k.session_id=? AND k.event_id=e.id)"; args.append(session["id"])
         sql += " ORDER BY e.id LIMIT ?"; args.append(min(limit, 500))
         rows = self._all(sql, *args)
         new_cursor = rows[-1]["id"] if rows else cur
-        if rows and advance and not request_id and since is None:
+        if rows and advance and since is None:
             with self.tx():
-                self.conn.execute("UPDATE sessions SET event_cursor=MAX(event_cursor, ?) WHERE id=?", (new_cursor, session["id"]))
+                if request_id:
+                    # A request-filtered read must not skip other requests' events: mark just these as read.
+                    for r in rows:
+                        self.conn.execute("INSERT OR IGNORE INTO acks(session_id, event_id) VALUES(?,?)", (session["id"], r["id"]))
+                else:
+                    self.conn.execute("UPDATE sessions SET event_cursor=MAX(event_cursor, ?) WHERE id=?", (new_cursor, session["id"]))
         return {"events": rows, "cursor": new_cursor}
 
     def last_event_id(self) -> int:

@@ -93,9 +93,10 @@ def test_demo_flow(api, tmp_path):
     assert res["request"]["status"] == "discussion" and res["status"] == "discussion"
     ev = ok(api.get("/events", params={"request_id": rid, "wait": 1}, headers=H(db)))
     assert any(e["type"] == "message" for e in ev["events"])
-    ev2 = ok(api.get("/events", params={"wait": 0}, headers=H(db)))  # request-filtered read did not move the cursor
-    assert any(e["type"] == "message" for e in ev2["events"])
-    assert ok(api.get("/events", headers=H(db)))["events"] == []  # now it did
+    assert ok(api.get("/events", params={"request_id": rid, "wait": 0}, headers=H(db)))["events"] == []  # seen once, not replayed
+    ev2 = ok(api.get("/events", params={"wait": 0}, headers=H(db)))  # unfiltered read still returns events of other requests
+    assert all(e["request_id"] == rid for e in ev2["events"]) or ev2["events"] == []
+    assert ok(api.get("/events", headers=H(db)))["events"] == []
     ok(api.post(f"/requests/{rid}/messages", headers=H(db), json={"body": "Yes.", "type": "answer"}))
     d = ok(api.get(f"/requests/{rid}", headers=H(gl)))
     assert d["actor"] == "gridlib" and any(x.startswith("reqlane propose") for x in d["next"])

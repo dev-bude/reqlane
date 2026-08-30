@@ -43,7 +43,7 @@
   .leaf .bad { color:var(--bad); }
   .actor { color:var(--warn); }
   .empty { color:var(--dim); padding:30px 0; text-align:center; }
-  .toggle { color:var(--dim); cursor:pointer; user-select:none; margin-left:auto; }
+  .toggle { color:var(--acc); cursor:pointer; user-select:none; border:1px solid var(--line); border-radius:12px; padding:2px 8px; }
   footer { color:var(--dim); padding:6px 16px; border-top:1px solid var(--line); position:fixed; bottom:0; left:0; right:0; background:var(--bg); display:flex; gap:16px; }
   a { color:var(--acc); text-decoration:none; }
 </style>
@@ -52,7 +52,7 @@
 <header>
   <h1>Reqlane</h1>
   <div id="agents"></div>
-  <span class="toggle" id="showClosed">show closed</span>
+  <span class="toggle" id="showClosed">hide closed</span>
 </header>
 <main id="main"><div class="empty">loading…</div></main>
 <footer><span id="status">connecting…</span><span id="feed"></span></footer>
@@ -63,7 +63,7 @@ const STAGE_MAP = { open:"open", discussion:"discussion", triage:"discussion", r
   proposal:"proposal", implementation:"implementation", evaluation:"evaluation", answered:"evaluation",
   closed:"done", acknowledged:"done", declined:"declined", withdrawn:"withdrawn", wont_do:"wont_do", blocked:"blocked",
   local:"local", deliberation:"deliberation" };
-let showClosed = false;
+let showClosed = true;
 function esc(s){ return String(s ?? "").replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c])); }
 function age(ts){ if(!ts) return ""; const d=(Date.now()-Date.parse(ts))/1000; if(d<90) return "now"; if(d<3600) return Math.floor(d/60)+"m"; if(d<86400) return Math.floor(d/3600)+"h"; return Math.floor(d/86400)+"d"; }
 function stagesFor(r){
@@ -117,7 +117,9 @@ function render(data){
   const shown = roots.filter(r => showClosed || !closedSet.has(r.status));
   const main = document.getElementById("main");
   if (!shown.length) { main.innerHTML = '<div class="empty">no requests' + (roots.length ? ' open (toggle "show closed")' : '') + '</div>'; return; }
-  main.innerHTML = shown.map(r => reqCard(r, byId, data)).join("");
+  const open = shown.filter(r => !closedSet.has(r.status)), closed = shown.filter(r => closedSet.has(r.status));
+  main.innerHTML = open.map(r => reqCard(r, byId, data)).join("")
+    + (closed.length ? `<div class="empty" style="padding:14px 0 4px;text-align:left">closed (${closed.length})</div>` + closed.map(r => reqCard(r, byId, data)).join("") : "");
 }
 function reqCard(r, byId, data, depth=0){
   const done = ["closed","declined","withdrawn","acknowledged","wont_do"].includes(r.status);

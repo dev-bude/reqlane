@@ -24,6 +24,9 @@ reply ends with `next:` — the commands that make sense now.
 - Waiting for someone: `reqlane wait --req <id>` (returns on the first event, up to 10 min),
   act, repeat. Nothing else wakes you after your turn ends, so stay in wait rather than asking.
   Idle provider with an empty inbox: `reqlane wait`. Two empty waits → tell the user, stop.
+- A `[reqlane]` message arriving while you work on something else: finish the current step, then
+  `reqlane inbox`. Switch immediately only if it unblocks the task you are on. Nothing is lost —
+  the inbox keeps it.
 
 ## Asking (`reqlane req new --to <agent>`)
 - Read their repo first; ask what code and docs do not answer. Say what you need and how you

@@ -90,6 +90,40 @@ def daemon_alive(url: str, timeout: float = 0.5) -> bool:
         return False
 
 
+def kill_daemon_process() -> None:
+    """Best effort: stop the daemon via its pid file, else by the listening port."""
+    import signal
+    pidf = config.home() / "daemon.pid"
+    pids: list[int] = []
+    if pidf.exists():
+        try:
+            pids.append(int(pidf.read_text().strip()))
+        except ValueError:
+            pass
+    if not pids:
+        port = config.port()
+        try:
+            if sys.platform == "win32":
+                out = subprocess.run(["netstat", "-ano", "-p", "tcp"], capture_output=True, text=True, timeout=5).stdout
+                for line in out.splitlines():
+                    cols = line.split()
+                    if len(cols) >= 5 and cols[1].endswith(f":{port}") and cols[3].upper().startswith("LISTEN"):
+                        pids.append(int(cols[4]))
+            else:
+                out = subprocess.run(["lsof", "-t", f"-iTCP:{port}", "-sTCP:LISTEN"], capture_output=True, text=True, timeout=5).stdout
+                pids += [int(x) for x in out.split()]
+        except (OSError, ValueError, subprocess.SubprocessError):
+            pass
+    for pid in set(pids):
+        try:
+            if sys.platform == "win32":
+                subprocess.run(["taskkill", "/PID", str(pid), "/F"], capture_output=True, timeout=5)
+            else:
+                os.kill(pid, signal.SIGTERM)
+        except (OSError, subprocess.SubprocessError):
+            pass
+
+
 def start_daemon(url: str, wait: float = 8.0) -> bool:
     if daemon_alive(url):
         return True
@@ -144,10 +178,13 @@ class Client:
                 self._http.post("/admin/shutdown", headers=self.headers(), timeout=2.0)
             except httpx.HTTPError:
                 pass
-            for _ in range(30):
+            for _ in range(10):
                 time.sleep(0.2)
                 if not daemon_alive(self.base_url, 0.3):
                     break
+            if daemon_alive(self.base_url, 0.3):
+                kill_daemon_process()  # pre-0.1.1 daemons have no shutdown endpoint
+                time.sleep(0.5)
             start_daemon(self.base_url)
 
     def call(self, method: str, path: str, *, json_body: dict | None = None, params: dict | None = None) -> dict:

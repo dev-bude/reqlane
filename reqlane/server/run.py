@@ -8,7 +8,16 @@ from .app import create_app
 
 
 def main() -> None:
-    uvicorn.run(create_app(), host="127.0.0.1", port=config.port(), log_level="warning")
+    import os
+    pidf = config.home() / "daemon.pid"
+    pidf.write_text(str(os.getpid()), encoding="utf-8")
+    try:
+        uvicorn.run(create_app(), host="127.0.0.1", port=config.port(), log_level="warning")
+    finally:
+        try:
+            pidf.unlink()
+        except OSError:
+            pass
 
 
 if __name__ == "__main__":

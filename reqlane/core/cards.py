@@ -35,8 +35,11 @@ reply ends with `next:` — the commands that make sense now.
   problem and close the loop (`reqlane evaluate`, `reqlane req close`).
 
 ## Product Owner (`reqlane ask-po`)
-- Scope, priority across projects, breaking compatibility, disputes — never your call. If the PO
-  is absent the reply says so: show the choice to the user in their language and follow `next:`.
+- Scope, priority across projects, breaking compatibility, disputes — never your call.
+  Escalating means RUNNING `reqlane ask-po --title ... --kind ... --option "A: ..." --body -`
+  (or `reqlane req escalate <id> ...` for an existing request); saying "I escalate" in chat sends
+  nothing. If the PO is absent the reply says so: show the choice to the user in their language
+  and follow `next:`.
 
 ## Never
 - Change or re-implement another repository's functionality; ask its agent and wait.

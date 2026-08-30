@@ -231,17 +231,17 @@ class Service:
                 agent_id = suggested
                 if not agent_id:
                     raise ServiceError("no agent registered for this directory", "not_connected", 409,
-                                       hint="the user registers it from a terminal: reqlane connect <name> [--kind po]")
+                                       hint="the user registers it by typing `/reqlane connect [name]` or `/reqlane po` in the chat")
             agent = self._one("SELECT * FROM agents WHERE id=?", agent_id)
             if not agent:
                 if not human:
                     raise ServiceError(f"agent '{agent_id}' is not registered", "forbidden", 403,
-                                       hint="registration needs the human: run `reqlane connect <name>` in your own terminal (TTY) or set REQLANE_HUMAN_TOKEN")
+                                       hint="registration is the user's action: they type `/reqlane connect [name]` in the chat (or run it in their terminal)")
                 agent = self.register_agent(agent_id, kind, cwd, depends_on, description)
             else:
                 if suggested != agent_id and not human:
                     raise ServiceError(f"this directory is not a repository of '{agent_id}'" + (f" (it belongs to '{suggested}')" if suggested else ""),
-                                       "forbidden", 403, hint="connect from the agent's own repository, or as the human (TTY / REQLANE_HUMAN_TOKEN)")
+                                       "forbidden", 403, hint="connect from the agent's own repository; the user can override with `/reqlane connect <name>`")
                 if human and (depends_on or description or (suggested != agent_id)):
                     agent = self.update_agent(agent_id, depends_on, description, cwd if suggested != agent_id else None)
             # One live session per (agent, cwd, name): close the previous one.

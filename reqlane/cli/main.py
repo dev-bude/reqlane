@@ -768,6 +768,12 @@ def _quiet(fn):
 @_quiet
 def hook_session_start():
     """SessionStart: identity, protocol card, inbox summary — only in a connected directory."""
+    data = _hook_input()
+    if data.get("cwd"):
+        try:
+            os.chdir(data["cwd"])
+        except OSError:
+            pass
     ses = find_session()
     if not ses:
         c = Client(autostart=False)
@@ -775,22 +781,141 @@ def hook_session_start():
             return
         sug = c.get("/agent-for-cwd", cwd=str(Path.cwd())).get("agent")
         if sug:
-            typer.echo(f"[reqlane] This directory belongs to agent '{sug}' (not connected). Run `reqlane connect {sug}` first, then follow the printed card.")
+            typer.echo(f"[reqlane] This directory belongs to agent '{sug}' but this session is not connected. "
+                       f"Ask the user to type `/reqlane connect` (registration and connection are the user's, not yours).")
         return
     c = Client(session_token=ses["token"], autostart=False)
     who = c.get("/whoami")
     ib = c.get("/inbox")
     card = c.get("/protocol", runtime=who.get("runtime"))["card"]
     typer.echo(f"[reqlane] Agent: {who['agent']} ({who['kind']}), session {who['session']}. PO: {'present' if who['po_present'] else 'absent'}.")
+    hint = _exe_hint()
+    if hint:
+        typer.echo(hint)
     typer.echo(card.rstrip())
     typer.echo(cards.UNTRUSTED_BANNER)
     typer.echo("\n".join(fmt.inbox_view(ib, who["agent"]).splitlines()[:15]))
 
 
+def _exe_hint() -> str:
+    import shutil
+    if shutil.which("reqlane"):
+        return ""
+    return f'[reqlane] `reqlane` is not on PATH in this shell; call it as "{inst.aw_executable()}" (same arguments).'
+
+
+def _slug(name: str) -> str:
+    import re as _re
+    s = _re.sub(r"[^a-z0-9_.-]+", "-", name.lower()).strip("-.")
+    return s[:40] or "agent"
+
+
+def _hook_input() -> dict:
+    """Claude Code passes hook input as JSON on stdin (session_id, cwd, prompt, ...)."""
+    try:
+        if sys.stdin is None or sys.stdin.isatty():
+            return {}
+        raw = sys.stdin.read()
+        return json.loads(raw) if raw.strip() else {}
+    except Exception:  # noqa: BLE001
+        return {}
+
+
+def _human_command(argv: list[str]) -> bool:
+    """`/reqlane start|connect|po|depends|status|disconnect` typed by the user in chat.
+
+    The prompt hook fires only on human input, so this is the human principal: the hook performs
+    the action with the human token and prints the result for the agent to relay."""
+    if not argv:
+        return False
+    cmd, args = argv[0], argv[1:]
+    cwd = Path.cwd()
+    human = config.human_token()
+    out: list[str] = []
+    try:
+        if cmd == "start":
+            c = Client(human=human)
+            h = c.get("/health")
+            ag = c.get("/agents")["agents"]
+            out.append(f"[reqlane] workspace running at {c.base_url} (v{h['version']}); agents: " + (", ".join(a['id'] + ('*' if a['sessions'] else '') for a in ag) or "none yet") + ".")
+            out.append("Next: `/reqlane connect` in each project's session, `/reqlane po` in the product owner's session.")
+        elif cmd in ("connect", "po"):
+            name = None
+            deps: list[str] = []
+            kind = "po" if cmd == "po" else "project"
+            it = iter(args)
+            for a in it:
+                if a in ("--depends-on", "--depends", "-d"):
+                    deps = csv(next(it, ""))
+                elif a == "--po":
+                    kind = "po"
+                elif not a.startswith("-") and name is None:
+                    name = a
+            name = _slug(name or ("po" if kind == "po" else cwd.name))
+            runtime = "claude-code"
+            c = Client(human=human)
+            res = c.post("/sessions/connect", agent=name, kind=kind, cwd=str(cwd), name=None, runtime=runtime, runtime_ref=None,
+                         pid=os.getppid(), depends_on=deps, description=None)
+            ses = res["session"]
+            save_session(cwd, None, {"token": res["token"], "agent": ses["agent_id"], "session_id": ses["id"], "hook_cursor": res["cursor"]})
+            who = res["who"]
+            out.append(f"[reqlane] connected by the user: this session is agent **{who['agent']}** ({who['kind']}), session {ses['id']}. "
+                       f"PO: {'present' if res['po_present'] else 'absent'}.")
+            if who["kind"] != "product_owner":
+                out.append(f"repos: {', '.join(who['repos'])}  depends_on: {', '.join(who['depends_on']) or '-'}  consumers: {', '.join(who['consumers']) or '-'}")
+            out.append("Do NOT run `reqlane connect` yourself — it is done. Tell the user in one line, then follow the card below.")
+            out.append("")
+            out.append(res["card"].rstrip())
+            out.append(cards.UNTRUSTED_BANNER)
+            out.append(fmt.inbox_view(res["inbox"], who["agent"]))
+        elif cmd == "depends":
+            ses = find_session()
+            if not ses:
+                out.append("[reqlane] not connected here; `/reqlane connect` first.")
+            else:
+                res = Client(human=human).post(f"/agents/{ses['agent']}", depends_on=csv(" ".join(args).replace(" ", ",")))
+                out.append(f"[reqlane] {ses['agent']} now depends on: {', '.join(res['depends_on']) or '-'}. Tell the user; nothing else to do.")
+        elif cmd == "status":
+            c = Client(autostart=False)
+            if not daemon_alive(c.base_url):
+                out.append("[reqlane] workspace is not running; `/reqlane start`.")
+            else:
+                ag = c.get("/agents")["agents"]
+                out.append("[reqlane] agents: " + (", ".join(f"{a['id']} ({', '.join(s.get('name') or s['id'] for s in a['sessions']) or 'offline'}, open→{a['open_requests_to']})" for a in ag) or "none") + ". Relay this to the user.")
+        elif cmd in ("disconnect", "stop"):
+            ses = find_session(exact=True)
+            if ses:
+                Client(session_token=ses["token"], autostart=False).post("/sessions/disconnect")
+                drop_session(ses)
+                out.append(f"[reqlane] session of {ses['agent']} disconnected. Tell the user; nothing else to do.")
+            else:
+                out.append("[reqlane] nothing connected in this directory.")
+        else:
+            return False
+    except ClientError as e:
+        out.append(f"[reqlane] {cmd} failed: {e} [{e.code}]" + (f" — {e.hint}" if e.hint else "") + ". Tell the user; do not retry yourself.")
+    hint = _exe_hint()
+    if hint:
+        out.append(hint)
+    typer.echo("\n".join(out))
+    return True
+
+
 @hook_app.command("prompt")
 @_quiet
 def hook_prompt():
-    """UserPromptSubmit: one line per new event since the last hook run (quoted, untrusted)."""
+    """UserPromptSubmit: handle `/reqlane start|connect|po|...` typed by the user; else one line per new event."""
+    data = _hook_input()
+    if data.get("cwd"):
+        try:
+            os.chdir(data["cwd"])
+        except OSError:
+            pass
+    prompt = (data.get("prompt") or "").strip()
+    if prompt.startswith("/reqlane"):
+        argv = prompt.split()[1:]
+        if argv and argv[0] in ("start", "connect", "po", "depends", "status", "disconnect", "stop") and _human_command(argv):
+            return
     ses = find_session()
     if not ses:
         return

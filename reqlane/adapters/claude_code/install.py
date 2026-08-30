@@ -26,10 +26,21 @@ description: Reqlane shortcuts — connect this session, read the inbox, create 
 
 # /reqlane — Reqlane
 
-Thin wrappers over the `reqlane` CLI (`reqlane --help`). The rules are the card printed by
-`reqlane connect` / the `[reqlane]` block at session start; if you have not seen it, run `reqlane protocol`.
+## Handled by the user's hook — do NOT run anything for these
 
-- `/reqlane connect [agent]` → `reqlane connect [agent]`; show the printed inbox as-is.
+`/reqlane start`, `/reqlane connect [name] [--depends-on a,b]`, `/reqlane po`, `/reqlane depends a,b`,
+`/reqlane status`, `/reqlane disconnect` are executed by the `UserPromptSubmit` hook with the
+user's own authority before you see them. Their result is already in your context as a
+`[reqlane] …` block. Your only job: tell the user in one line what happened (e.g. "Connected as
+agent gridlib; PO absent; inbox empty") and, if a protocol card was printed, follow it from now on.
+If no `[reqlane]` block appeared, say so — the hooks are probably not installed
+(`reqlane install --runtime claude-code --hooks` in the user's terminal).
+
+## Everything else — thin wrappers over the `reqlane` CLI (`reqlane --help`)
+
+The rules are the protocol card (printed at connect / session start; `reqlane protocol` reprints it).
+If `reqlane` is not on PATH, use the full path given in the `[reqlane]` line.
+
 - `/reqlane inbox` → `reqlane inbox`. Blocking first.
 - `/reqlane request <agent>` → collect title, goal, constraints, acceptance, code refs from the
   conversation (ask only for what is missing), then `reqlane req new --to <agent> --type ... --body -`.

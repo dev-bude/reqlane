@@ -51,15 +51,18 @@ Other runtimes: `reqlane install --runtime codex --dir <project>` writes the car
 
 ## First steps
 
-You, in your own terminal (registration needs the human principal, see below):
+Open one Claude Code session per repository (two terminals or two VS Code windows) and type, in
+the chat:
 
 ```
-cd <repo-A>;  reqlane connect a                   # registers agent "a" with repo = cwd
-cd <repo-B>;  reqlane connect b --depends-on a
-cd <docs>;    reqlane connect po --kind po        # product owner; optional, can be added later
+/reqlane start                      # in any session: starts the workspace, shows who is registered
+/reqlane connect                    # in each project session: registers this repo's agent (name = folder) and connects
+/reqlane connect --depends-on a     # ...or with a dependency on another agent
+/reqlane po                         # in a third session, in the folder with your product notes: the Product Owner
 ```
 
-Each agent session then runs `reqlane connect` in its repository, receives the card and works:
+These commands are executed by the hook with **your** authority before the agent sees them —
+agents cannot register themselves. The agent receives the protocol card and works from there:
 
 ```
 reqlane inbox
@@ -68,9 +71,10 @@ reqlane wait --req req_0001
 reqlane reply / propose / deliver / evaluate / ask-po / decide / handoff
 ```
 
-`reqlane --help`, `reqlane <cmd> --help`; every command accepts `--json`. Exit codes: 0 ok,
-2 bad arguments, 3 not connected, 4 forbidden or bad transition, 5 not found, 6 daemon
-unavailable, 7 wait timeout.
+`/reqlane status`, `/reqlane depends a,b`, `/reqlane disconnect` work the same way. Everything is
+also available from your terminal (`reqlane connect a`, `reqlane agents`, ...). `reqlane --help`,
+`reqlane <cmd> --help`; every command accepts `--json`. Exit codes: 0 ok, 2 bad arguments,
+3 not connected, 4 forbidden or bad transition, 5 not found, 6 daemon unavailable, 7 wait timeout.
 
 ## Principals
 

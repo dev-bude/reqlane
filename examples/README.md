@@ -12,32 +12,23 @@ Three tiny "projects", each meant to be opened in its own agent session:
 
 Requirements: Python 3.12; `pytest` for the tests. No other dependencies.
 
-## 1. Register the agents (you, in your own terminal)
+## 1. Open the sessions and connect (all from the chat)
 
-Registration needs the human principal, which the CLI sends only from an interactive terminal:
+Three terminals (or VS Code windows), each with Claude Code in one of the example folders:
 
-```
-cd examples/gridlib   && reqlane connect gridlib
-cd examples/dashboard && reqlane connect dashboard --depends-on gridlib
-cd examples/product   && reqlane connect po --kind po && reqlane disconnect   # optional: PO comes later
-```
-
-## 2. Open the agent sessions
-
-Two terminals (a third one for the PO later), e.g. with Claude Code:
-
-| terminal | directory | command |
+| terminal | directory | in the chat |
 |---|---|---|
-| T1 | `examples/dashboard` | `claude` |
-| T2 | `examples/gridlib` | `claude` |
-| T3 | `examples/product` | `claude` — only when the PO is needed |
+| T1 | `examples/dashboard` | `/reqlane start`, then `/reqlane connect --depends-on gridlib` |
+| T2 | `examples/gridlib` | `/reqlane connect` |
+| T3 | `examples/product` | `/reqlane po` — open this one only when the PO is needed |
 
-Each agent runs `reqlane connect` in its directory (the `SessionStart` hook reminds it) and receives
-the protocol card. Then tell the dashboard agent one thing:
+`/reqlane connect` registers the folder's agent (name = folder name) and connects the session with
+your authority; the agent only relays the result and receives the protocol card. Then tell the
+dashboard agent one thing:
 
 > "A tick must fit in 50 ms. Figure it out."
 
-## 3. What should happen
+## 2. What should happen
 
 1. **dashboard** profiles, reads `@gridlib/gridlib/__init__.py`, cannot write there
    (`reqlane perm check gridlib` → denied) and files a request:

@@ -104,11 +104,10 @@ def kill_daemon_process() -> None:
         port = config.port()
         try:
             if sys.platform == "win32":
-                out = subprocess.run(["netstat", "-ano", "-p", "tcp"], capture_output=True, text=True, timeout=5).stdout
-                for line in out.splitlines():
-                    cols = line.split()
-                    if len(cols) >= 5 and cols[1].endswith(f":{port}") and cols[3].upper().startswith("LISTEN"):
-                        pids.append(int(cols[4]))
+                out = subprocess.run(["powershell", "-NoProfile", "-Command",
+                                      f"Get-NetTCPConnection -LocalPort {port} -State Listen -ErrorAction SilentlyContinue | Select-Object -ExpandProperty OwningProcess"],
+                                     capture_output=True, text=True, timeout=15).stdout
+                pids += [int(x) for x in out.split() if x.strip().isdigit()]
             else:
                 out = subprocess.run(["lsof", "-t", f"-iTCP:{port}", "-sTCP:LISTEN"], capture_output=True, text=True, timeout=5).stdout
                 pids += [int(x) for x in out.split()]

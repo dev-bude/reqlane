@@ -133,6 +133,11 @@ def create_app(service: Service | None = None, api_token: str | None = None, hum
     def whoami(s: dict = Depends(session)):
         return svc.whoami(s)
 
+    @app.post("/sessions/me/address")
+    async def set_address(request: Request, s: dict = Depends(session)):
+        b = await body_of(request)
+        return svc.set_session_ref(s, b.get("runtime_ref", ""))
+
     @app.post("/agents/{aid}")
     async def update_agent(aid: str, request: Request, is_human: bool = Depends(human)):
         if not is_human:

@@ -32,7 +32,8 @@ description: Reqlane shortcuts — connect this session, read the inbox, create 
 `/reqlane status`, `/reqlane ui`, `/reqlane disconnect` are executed by the `UserPromptSubmit` hook with the
 user's own authority before you see them. Their result is already in your context as a
 `[reqlane] …` block. Your only job: tell the user in one line what happened (e.g. "Connected as
-agent gridlib; PO absent; inbox empty") and, if a protocol card was printed, follow it from now on.
+agent gridlib; PO absent; inbox empty"), then — if a card was printed — call ListAgents and run
+`reqlane address "NAME [ref]"` with its `This session is …` line, and follow the card from now on.
 If no `[reqlane]` block appeared, say so — the hooks are probably not installed
 (`reqlane install --runtime claude-code --hooks` in the user's terminal).
 

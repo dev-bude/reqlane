@@ -259,6 +259,15 @@ class Service:
             who = self.whoami(ses)
             return {"session": ses, "token": tok, "agent": agent, "who": who, "inbox": self.inbox(ses), "po_present": self.po_present(), "cursor": cursor}
 
+    def set_session_ref(self, session: dict, runtime_ref: str) -> dict:
+        """The session records its own cross-session address (e.g. Claude's 'name [ref]')."""
+        with self.tx():
+            ref = clean(runtime_ref, 200, "runtime_ref").strip()
+            if not ref:
+                raise ServiceError("address is empty")
+            self.conn.execute("UPDATE sessions SET runtime_ref=? WHERE id=?", (ref, session["id"]))
+            return self._one("SELECT * FROM sessions WHERE id=?", session["id"])
+
     def disconnect(self, session: dict) -> None:
         with self.tx():
             self.conn.execute("UPDATE sessions SET status='gone', ended_at=? WHERE id=?", (now(), session["id"]))

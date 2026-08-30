@@ -203,6 +203,18 @@ def connect(agent: Optional[str] = typer.Argument(None, help="Agent id. Omit to 
 
 @app.command()
 @guard
+def address(text: str = typer.Argument(..., help="Your cross-session address, e.g. 'gridlib-44 [e07008]' — the 'This session is …' line of ListAgents.")):
+    """Record this session's address so other agents can wake it with a cross-session message."""
+    import re as _re
+    m = _re.search(r"([^\s\[]+(?:\s[^\s\[]+)*)\s*(\[[0-9a-f]{4,}\])?", text.replace("This session is", "").strip())
+    ref = (m.group(1).strip() + (" " + m.group(2) if m.group(2) else "")) if m else text.strip()
+    c, _ = client()
+    res = c.post("/sessions/me/address", runtime_ref=ref)
+    emit(res, f"address recorded: {res['runtime_ref']}  (others will SendMessage you at this name)")
+
+
+@app.command()
+@guard
 def disconnect():
     """End this directory's session."""
     c, ses = client()
@@ -896,6 +908,8 @@ def _human_command(argv: list[str]) -> bool:
             if who["kind"] != "product_owner":
                 out.append(f"repos: {', '.join(who['repos'])}  depends_on: {', '.join(who['depends_on']) or '-'}  consumers: {', '.join(who['consumers']) or '-'}")
             out.append("Do NOT run `reqlane connect` yourself — it is done. Tell the user in one line, then follow the card below.")
+            out.append("FIRST: call your ListAgents tool, take its line `This session is NAME [ref]` and run "
+                       "`reqlane address \"NAME [ref]\"` — that is how other agents will wake you.")
             out.append("")
             out.append(res["card"].rstrip())
             out.append(cards.UNTRUSTED_BANNER)

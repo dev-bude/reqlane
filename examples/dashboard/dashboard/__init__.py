@@ -11,7 +11,7 @@ ROWS, COLS = 200, 50
 
 class MetricsView:
     def __init__(self) -> None:
-        self.grid = Grid(ROWS, COLS)
+        self.grid = Grid(ROWS, COLS, highlight_changes=True)
 
     def tick(self, t: int) -> None:
         # Every cell changes every tick; batch them so gridlib renders once.

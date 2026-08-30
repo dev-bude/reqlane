@@ -16,6 +16,8 @@ reply ends with `next:` — the commands that make sense now.
 - Connected = a `[reqlane] Agent: …` line appeared (the user does `/reqlane connect`, never you).
   Then call ListAgents and run `reqlane address "NAME [ref]"` with its `This session is …` line.
 - `reqlane inbox` at start, after each commit, before reporting to the user, on any `[reqlane]` line.
+- `reqlane agents` — who is in the workspace right now (agents join and leave; the list you saw
+  at start goes stale). Check it before saying that some agent does not exist.
 - Every reply prints `notify: agent[claude-code:ADDRESS]`: send that ADDRESS one SendMessage
   `[reqlane] <req id>: <what you did>. Run reqlane inbox` — it wakes the other session. If it
   fails, move on; they will read the inbox.

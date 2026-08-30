@@ -165,6 +165,10 @@ def event_line(e: dict) -> str:
         return f"#{e['id']} {rid} handed over to PO: {q(p.get('title', ''), 60)}"
     if t.startswith("agreement"):
         return f"#{e['id']} {e['entity_id']} {t} {q(p.get('title', '') or ('by ' + str(p.get('by'))), 60)}"
+    if t == "agent.created":
+        from pathlib import Path as _P
+        repos = ", ".join(_P(r).name for r in (p.get("repos") or [])) or "-"
+        return f"#{e['id']} new agent {p.get('agent') or e.get('entity_id')} joined the workspace (repo: {repos}{', Product Owner' if p.get('kind') == 'product_owner' else ''}) — you can ask it or order work from it"
     if t.startswith("session"):
         return f"#{e['id']} {t} {who}"
     return f"#{e['id']} {t} {rid} {one_line(json.dumps(p, ensure_ascii=False), 80)}"

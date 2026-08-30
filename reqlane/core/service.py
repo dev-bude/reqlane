@@ -193,7 +193,8 @@ class Service:
             if kind == "product_owner":
                 self.conn.execute("UPDATE requests SET to_agent=? WHERE type='decision' AND to_agent='po'", (agent_id,))
                 self.conn.execute("UPDATE requests SET routed_to=? WHERE type='decision' AND routed_to='po'", (agent_id,))
-            self._emit("agent.created", "agent", agent_id, [agent_id], {"kind": kind, "repos": repos})
+            everyone = [a["id"] for a in self._all("SELECT id FROM agents")]
+            self._emit("agent.created", "agent", agent_id, everyone, {"kind": kind, "repos": repos, "agent": agent_id})
             return self._agent(agent_id)
 
     def update_agent(self, agent_id: str, depends_on: list[str] | None, description: str | None, add_repo: str | None) -> dict:

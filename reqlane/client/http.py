@@ -130,8 +130,29 @@ class Client:
             h["X-Reqlane-Human"] = self.human
         return h
 
+    def _ensure_version(self) -> None:
+        """Once per process: if a daemon of another version is running (e.g. after `pip install`), restart it."""
+        if self._restarted:
+            return
+        self._restarted = True
+        try:
+            h = self._http.get("/health", timeout=2.0)
+        except httpx.HTTPError:
+            return
+        if h.status_code == 200 and h.json().get("version") != __version__:
+            try:
+                self._http.post("/admin/shutdown", headers=self.headers(), timeout=2.0)
+            except httpx.HTTPError:
+                pass
+            for _ in range(30):
+                time.sleep(0.2)
+                if not daemon_alive(self.base_url, 0.3):
+                    break
+            start_daemon(self.base_url)
+
     def call(self, method: str, path: str, *, json_body: dict | None = None, params: dict | None = None) -> dict:
         params = {k: v for k, v in (params or {}).items() if v is not None}
+        self._ensure_version()
         try:
             r = self._http.request(method, path, json=json_body, params=params, headers=self.headers())
         except httpx.ConnectError:
@@ -144,16 +165,6 @@ class Client:
                 raise ClientError(f"daemon not running at {self.base_url}", "daemon_unavailable", "reqlane serve", 503)
         except httpx.HTTPError as e:
             raise ClientError(f"transport error: {e}", "daemon_unavailable", None, 503)
-        if r.headers.get("X-Reqlane-Version") not in (None, __version__) and not self._restarted:
-            # An older/newer daemon is running (e.g. after `pip install`): restart it once and retry.
-            self._restarted = True
-            try:
-                self._http.post("/admin/shutdown", headers=self.headers())
-            except httpx.HTTPError:
-                pass
-            time.sleep(0.6)
-            if start_daemon(self.base_url):
-                return self.call(method, path, json_body=json_body, params=params)
         if r.status_code >= 400:
             try:
                 d = r.json()

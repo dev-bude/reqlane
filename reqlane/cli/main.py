@@ -798,16 +798,23 @@ def hook_session_start():
             os.chdir(data["cwd"])
         except OSError:
             pass
-    ses = find_session()
+    ses = find_session(exact=True)
     if not ses:
-        c = Client(autostart=False)
-        if not daemon_alive(c.base_url):
+        # Auto-connect: a directory that was registered before reconnects on its own (new session, /clear, resume).
+        if not config.db_path().exists():
             return
+        c = Client(autostart=True)
         sug = c.get("/agent-for-cwd", cwd=str(Path.cwd())).get("agent")
-        if sug:
-            typer.echo(f"[reqlane] This directory belongs to agent '{sug}' but this session is not connected. "
-                       f"Ask the user to type `/reqlane connect` (registration and connection are the user's, not yours).")
-        return
+        if not sug:
+            typer.echo("[reqlane] This repository is not registered in Reqlane. The user can type `/reqlane connect` to register it (or `/reqlane po` for the product owner).")
+            return
+        res = c.post("/sessions/connect", agent=sug, kind="project", cwd=str(Path.cwd()), name=None, runtime="claude-code",
+                     runtime_ref=claude_session_name(), pid=os.getppid(), depends_on=[], description=None)
+        s_ = res["session"]
+        save_session(Path.cwd(), None, {"token": res["token"], "agent": s_["agent_id"], "session_id": s_["id"], "hook_cursor": res["cursor"]})
+        ses = find_session(exact=True)
+        typer.echo(f"[reqlane] Reconnected automatically as agent {s_['agent_id']} (session {s_['id']}). "
+                   f"Call ListAgents and run `reqlane address \"NAME [ref]\"` with its `This session is …` line so others can wake you.")
     c = Client(session_token=ses["token"], autostart=False)
     who = c.get("/whoami")
     ib = c.get("/inbox")
@@ -816,9 +823,27 @@ def hook_session_start():
     hint = _exe_hint()
     if hint:
         typer.echo(hint)
+    typer.echo(agents_block(c))
     typer.echo(card.rstrip())
     typer.echo(cards.UNTRUSTED_BANNER)
     typer.echo("\n".join(fmt.inbox_view(ib, who["agent"]).splitlines()[:15]))
+
+
+def agents_block(c: Client) -> str:
+    """Who is in the workspace: agent, repositories, online/offline — so the agent knows whom it can ask."""
+    try:
+        ag = c.get("/agents")["agents"]
+    except ClientError:
+        return ""
+    if not ag:
+        return "[reqlane] no other agents registered yet."
+    lines = ["[reqlane] Agents in this workspace (you can ask any of them or order work from them):"]
+    for a in ag:
+        repos = ", ".join(Path(r).name for r in a.get("repos") or []) or "-"
+        state = "online" if a["sessions"] else "offline (will read its inbox when it connects)"
+        kind = " — Product Owner" if a["kind"] == "product_owner" else ""
+        lines.append(f"  {a['id']:<14} repo: {repos:<24} {state}{kind}")
+    return "\n".join(lines)
 
 
 def _exe_hint() -> str:
@@ -911,6 +936,7 @@ def _human_command(argv: list[str]) -> bool:
             out.append("Do NOT run `reqlane connect` yourself — it is done. Tell the user in one line, then follow the card below.")
             out.append("FIRST: call your ListAgents tool, take its line `This session is NAME [ref]` and run "
                        "`reqlane address \"NAME [ref]\"` — that is how other agents will wake you.")
+            out.append(agents_block(c))
             out.append("")
             out.append(res["card"].rstrip())
             out.append(cards.UNTRUSTED_BANNER)

@@ -76,6 +76,7 @@ def create_app(service: Service | None = None, api_token: str | None = None, hum
     async def _proto(request: Request, call_next):
         resp = await call_next(request)
         resp.headers["X-Reqlane-Protocol"] = str(PROTOCOL_VERSION)
+        resp.headers["X-Reqlane-Version"] = __version__
         return resp
 
     async def body_of(request: Request) -> dict[str, Any]:
@@ -321,6 +322,13 @@ def create_app(service: Service | None = None, api_token: str | None = None, hum
         if not hmac.compare_digest(token, api_token):
             raise HTTPException(401, {"error": "bad token", "code": "unauthorized", "hint": "open the UI with `reqlane ui`"})
         return svc.overview()
+
+    @app.post("/admin/shutdown", dependencies=[Depends(bearer)])
+    def shutdown():
+        """Exit the daemon (clients call this when their version differs; the next call restarts it)."""
+        import os
+        threading.Timer(0.3, lambda: os._exit(0)).start()
+        return {"ok": True, "version": __version__}
 
     @app.post("/admin/tick", dependencies=[Depends(bearer)])
     def tick():

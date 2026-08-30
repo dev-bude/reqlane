@@ -11,7 +11,7 @@ from pathlib import Path
 
 import httpx
 
-from .. import config
+from .. import __version__, config
 
 EXIT = {"ok": 0, "bad_request": 2, "not_connected": 3, "forbidden": 4, "bad_transition": 4, "conflict": 4,
         "not_found": 5, "daemon_unavailable": 6, "unauthorized": 6, "timeout": 7}
@@ -119,6 +119,7 @@ class Client:
         self.session_token = session_token
         self.human = human
         self.autostart = autostart
+        self._restarted = False
         self._http = httpx.Client(base_url=self.base_url, timeout=httpx.Timeout(30.0, read=660.0), transport=transport)
 
     def headers(self) -> dict:
@@ -143,6 +144,16 @@ class Client:
                 raise ClientError(f"daemon not running at {self.base_url}", "daemon_unavailable", "reqlane serve", 503)
         except httpx.HTTPError as e:
             raise ClientError(f"transport error: {e}", "daemon_unavailable", None, 503)
+        if r.headers.get("X-Reqlane-Version") not in (None, __version__) and not self._restarted:
+            # An older/newer daemon is running (e.g. after `pip install`): restart it once and retry.
+            self._restarted = True
+            try:
+                self._http.post("/admin/shutdown", headers=self.headers())
+            except httpx.HTTPError:
+                pass
+            time.sleep(0.6)
+            if start_daemon(self.base_url):
+                return self.call(method, path, json_body=json_body, params=params)
         if r.status_code >= 400:
             try:
                 d = r.json()

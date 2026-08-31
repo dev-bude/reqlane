@@ -8,7 +8,7 @@ license = "Apache-2.0"
 license-files = ["LICENSE", "NOTICE"]
 readme = "README.md"
 keywords = ["ai-agents", "claude-code", "codex", "multi-agent", "request-lifecycle"]
-authors = [{ name = "SimeonAr", email = "138221944+simeonar@users.noreply.github.com" }]
+authors = [{ name = "SimeonAr" }]
 classifiers = [
     "Development Status :: 3 - Alpha",
     "Intended Audience :: Developers",

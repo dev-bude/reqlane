@@ -22,12 +22,12 @@ context and tools. Reqlane owns requests, messages, artifacts, decisions and eve
   agent at `reqlane connect`; the Claude Code adapter adds a thin skill and hooks that fetch it.
 - The lifecycle: `open → discussion → proposal → implementation → delivery → evaluation → closed`,
   with `question`, `bug`, `change`, `review`, `notice`, `task` and `decision` variants. See
-  [PROTOCOL.md](PROTOCOL.md) — the protocol is documented separately from the code (CC-BY-4.0) and
+  [PROTOCOL.md](https://github.com/dev-bude/reqlane/blob/main/PROTOCOL.md) — the protocol is documented separately from the code (CC-BY-4.0) and
   maps onto A2A task states and MCP Tasks.
 - If no Product Owner session is present, a product question stays in the chat of the agent
   that needs it, with the option to hand it over to the PO later.
 
-Status: pre-release. Local mode works end to end — see [WALKTHROUGH.md](WALKTHROUGH.md) for one real
+Status: pre-release. Local mode works end to end — see [WALKTHROUGH.md](https://github.com/dev-bude/reqlane/blob/main/WALKTHROUGH.md) for one real
 request followed from the user's instruction to the consumer's evaluation. No MCP surface, no
 CI/ephemeral mode yet. Code: Apache-2.0.
 
@@ -109,14 +109,14 @@ every command accepts `--json`. Exit codes: 0 ok, 2 bad arguments, 3 not connect
   record is stored as *unattested* and listed for the PO.
 
 State lives in `~/.reqlane/` (`REQLANE_HOME`); port 7771 (`REQLANE_PORT`). Trust model and data
-notes: [SECURITY.md](SECURITY.md).
+notes: [SECURITY.md](https://github.com/dev-bude/reqlane/blob/main/SECURITY.md).
 
 ## Reading on
 
-- [WALKTHROUGH.md](WALKTHROUGH.md) — how a request flows, step by step, with real output.
-- [PROTOCOL.md](PROTOCOL.md) — lifecycle, roles, artifacts, mapping to A2A / MCP Tasks.
-- [SECURITY.md](SECURITY.md) — trust model, data, what the adapter writes.
-- [CONTRIBUTING.md](CONTRIBUTING.md) — how to set up, what is worth working on, house rules.
+- [WALKTHROUGH.md](https://github.com/dev-bude/reqlane/blob/main/WALKTHROUGH.md) — how a request flows, step by step, with real output.
+- [PROTOCOL.md](https://github.com/dev-bude/reqlane/blob/main/PROTOCOL.md) — lifecycle, roles, artifacts, mapping to A2A / MCP Tasks.
+- [SECURITY.md](https://github.com/dev-bude/reqlane/blob/main/SECURITY.md) — trust model, data, what the adapter writes.
+- [CONTRIBUTING.md](https://github.com/dev-bude/reqlane/blob/main/CONTRIBUTING.md) — how to set up, what is worth working on, house rules.
 
 ## Layout
 
@@ -133,8 +133,8 @@ Tests: `python -m pytest -q`.
 
 ## Licence
 
-Code: Apache-2.0 ([LICENSE](LICENSE), [NOTICE](NOTICE)). The protocol description
-([PROTOCOL.md](PROTOCOL.md)): CC BY 4.0.
+Code: Apache-2.0 ([LICENSE](https://github.com/dev-bude/reqlane/blob/main/LICENSE), [NOTICE](https://github.com/dev-bude/reqlane/blob/main/NOTICE)). The protocol description
+([PROTOCOL.md](https://github.com/dev-bude/reqlane/blob/main/PROTOCOL.md)): CC BY 4.0.
 
 Claude Code, Codex, Gemini CLI and Cursor are products of their respective owners; Reqlane is an
 independent project and is not affiliated with or endorsed by any of them.

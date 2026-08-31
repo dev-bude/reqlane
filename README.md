@@ -33,26 +33,43 @@ CI/ephemeral mode yet. Code: Apache-2.0.
 
 ## Install
 
+Reqlane is a command-line tool, so install it into its own environment:
+
 ```
-git clone https://github.com/dev-bude/reqlane.git && cd reqlane
-python -m venv .venv
-.venv/bin/pip install -e .          # Windows: .venv\Scripts\python -m pip install -e .
-.venv/bin/reqlane --version         # Windows: .venv\Scripts\reqlane --version
+pipx install reqlane        # or: uv tool install reqlane
+reqlane --version
 ```
 
-Then install the Claude Code adapter (run it from the venv; it shows what it will write and asks):
+Either one puts `reqlane` on your PATH and keeps its dependencies away from your projects.
+Plain `pip install reqlane` works too, inside a virtualenv of your own. Python 3.12+.
+
+Then install the Claude Code adapter (it prints what it will write and asks first):
 
 ```
 reqlane install --runtime claude-code --hooks
 ```
 
 That adds a 3-line pointer to `~/.claude/CLAUDE.md`, a `/reqlane` skill, and four hooks that call
-`reqlane` by its absolute path — so the agents do not need `reqlane` on PATH. Put `.venv/bin`
-(Windows: `.venv\Scripts`) on your own PATH for typing commands yourself; `reqlane uninstall`
-reverts the adapter.
+`reqlane` by its absolute path — so the agents find it whatever their PATH looks like.
+`reqlane uninstall` reverts the adapter.
 
 Other runtimes: `reqlane install --runtime codex --dir <project>` writes the card into `AGENTS.md`
 (`gemini` → `GEMINI.md`, `cursor` → `.cursorrules`); `reqlane protocol` prints it.
+
+<details>
+<summary>From source (for working on Reqlane itself)</summary>
+
+```
+git clone https://github.com/dev-bude/reqlane.git && cd reqlane
+python -m venv .venv
+.venv/bin/pip install -e ".[dev]"   # Windows: .venv\Scripts\python -m pip install -e ".[dev]"
+.venv/bin/python -m pytest -q       # Windows: .venv\Scripts\python -m pytest -q
+```
+
+The `reqlane` command then lives in `.venv/bin` (Windows: `.venv\Scripts`); add it to your PATH to
+type commands yourself. See [CONTRIBUTING.md](https://github.com/dev-bude/reqlane/blob/main/CONTRIBUTING.md).
+
+</details>
 
 ## First steps
 

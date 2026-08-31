@@ -34,7 +34,7 @@ CI/ephemeral mode yet. Code: Apache-2.0.
 ## Install
 
 ```
-git clone <this repo> && cd reqlane
+git clone https://github.com/dev-bude/reqlane.git && cd reqlane
 python -m venv .venv
 .venv/bin/pip install -e .          # Windows: .venv\Scripts\python -m pip install -e .
 .venv/bin/reqlane --version         # Windows: .venv\Scripts\reqlane --version
@@ -116,6 +116,7 @@ notes: [SECURITY.md](SECURITY.md).
 - [WALKTHROUGH.md](WALKTHROUGH.md) — how a request flows, step by step, with real output.
 - [PROTOCOL.md](PROTOCOL.md) — lifecycle, roles, artifacts, mapping to A2A / MCP Tasks.
 - [SECURITY.md](SECURITY.md) — trust model, data, what the adapter writes.
+- [CONTRIBUTING.md](CONTRIBUTING.md) — how to set up, what is worth working on, house rules.
 
 ## Layout
 
@@ -129,3 +130,11 @@ tests/            the walkthrough's flow and the rules, through the API
 ```
 
 Tests: `python -m pytest -q`.
+
+## Licence
+
+Code: Apache-2.0 ([LICENSE](LICENSE), [NOTICE](NOTICE)). The protocol description
+([PROTOCOL.md](PROTOCOL.md)): CC BY 4.0.
+
+Claude Code, Codex, Gemini CLI and Cursor are products of their respective owners; Reqlane is an
+independent project and is not affiliated with or endorsed by any of them.

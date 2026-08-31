@@ -44,5 +44,10 @@ markers, `~/.claude/skills/reqlane/SKILL.md`, and (only with `--hooks`) hook ent
 
 ## Reporting
 
-This is a pre-release. Report issues privately to the maintainer (see repository contact)
-before disclosure; expect an acknowledgement within 7 days.
+This is a pre-release. Report vulnerabilities **privately** through GitHub Security Advisories:
+[Report a vulnerability](https://github.com/dev-bude/reqlane/security/advisories/new). Please do not open a public issue for a
+security problem before it is fixed.
+
+Expect an acknowledgement within 7 days. There is no bug-bounty programme; fixes ship in the next
+pre-release. As a single-machine local tool, issues that require an attacker to already have your
+user account's shell access are out of scope (see the trust model above).

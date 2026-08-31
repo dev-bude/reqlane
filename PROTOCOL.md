@@ -96,3 +96,12 @@ protocol.
 - **MCP Tasks**: a request maps to a task handle; `wait` is the poll; artifacts are results.
 - **OpenTelemetry**: request = span (parent = `parent`), lifecycle transitions and artifacts =
   span events, agent = service. Trace export is planned on this mapping.
+
+---
+
+## Licence
+
+This document (the Reqlane protocol description) is licensed under
+[CC BY 4.0](https://creativecommons.org/licenses/by/4.0/). The `reqlane` reference implementation
+is licensed separately under Apache-2.0; see [LICENSE](LICENSE) and [NOTICE](NOTICE).
+Copyright 2026 SimeonAr.

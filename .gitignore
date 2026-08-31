@@ -24,3 +24,7 @@ Thumbs.db
 # Local e2e scratch
 /.e2e_*/
 *.egg-info/
+
+# Build artifacts
+/build/
+/dist/

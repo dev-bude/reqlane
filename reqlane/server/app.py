@@ -10,6 +10,7 @@ import hmac
 import json
 import threading
 import time
+from contextlib import asynccontextmanager
 from typing import Any
 
 from fastapi import Depends, FastAPI, Header, HTTPException, Request
@@ -28,11 +29,17 @@ def create_app(service: Service | None = None, api_token: str | None = None, hum
     svc = service or Service(config.db_path())
     api_token = api_token if api_token is not None else config.token()
     human_token = human_token if human_token is not None else config.human_token()
-    app = FastAPI(title="Reqlane", version=__version__)
-    app.state.service = svc
     started_at = time.time()
     cond = asyncio.Condition()
     loop_ref: dict[str, asyncio.AbstractEventLoop | None] = {"loop": None}
+
+    @asynccontextmanager
+    async def lifespan(_app: FastAPI):
+        loop_ref["loop"] = asyncio.get_running_loop()
+        yield
+
+    app = FastAPI(title="Reqlane", version=__version__, lifespan=lifespan)
+    app.state.service = svc
 
     async def _wake():
         async with cond:
@@ -44,10 +51,6 @@ def create_app(service: Service | None = None, api_token: str | None = None, hum
             loop.call_soon_threadsafe(lambda: asyncio.ensure_future(_wake()))
 
     svc.on_event = on_event
-
-    @app.on_event("startup")
-    async def _startup():
-        loop_ref["loop"] = asyncio.get_running_loop()
 
     def _err(e: ServiceError) -> HTTPException:
         return HTTPException(e.status, {"error": str(e), "code": e.code, "hint": e.hint})

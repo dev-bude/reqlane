@@ -1,4 +1,4 @@
-"""`python -m reqlane.server.run` — start the daemon (used by `reqlane serve` and by autostart)."""
+"""`python -m repomoot.server.run` — start the daemon (used by `repomoot serve` and by autostart)."""
 from __future__ import annotations
 
 import uvicorn

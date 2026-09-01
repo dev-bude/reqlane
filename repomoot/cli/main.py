@@ -1,7 +1,7 @@
-"""`reqlane` command line: the primary client of the workspace for agents, humans and hooks.
+"""`repomoot` command line: the primary client of the workspace for agents, humans and hooks.
 
 Layout: verbs an agent uses most are top-level (connect, inbox, reply, propose, deliver, evaluate,
-ask-po, decide, handoff, wait); `reqlane req ...` holds request management; `reqlane po ...` only PO operations.
+ask-po, decide, handoff, wait); `repomoot req ...` holds request management; `repomoot po ...` only PO operations.
 """
 from __future__ import annotations
 
@@ -20,7 +20,7 @@ from ..client.http import Client, ClientError, daemon_alive, drop_session, find_
 from ..core import cards
 from . import fmt
 
-app = typer.Typer(help="Reqlane CLI. Rules for agents: `reqlane protocol`.", no_args_is_help=True, add_completion=False,
+app = typer.Typer(help="Repomoot CLI. Rules for agents: `repomoot protocol`.", no_args_is_help=True, add_completion=False,
                   context_settings={"help_option_names": ["-h", "--help"]})
 req_app = typer.Typer(help="Request management: new, list, show, claim, decline, withdraw, close, reassign, accept, escalate, ack.", no_args_is_help=True)
 art_app = typer.Typer(help="Artifacts (investigation, note; proposal/delivery/evaluation have top-level verbs).", no_args_is_help=True)
@@ -39,7 +39,7 @@ STATE = {"json": False}
 
 def _version_cb(value: bool):
     if value:
-        typer.echo(f"reqlane {__version__} protocol {PROTOCOL_VERSION}")
+        typer.echo(f"repomoot {__version__} protocol {PROTOCOL_VERSION}")
         raise typer.Exit()
 
 
@@ -73,12 +73,12 @@ def auto_reconnect() -> dict | None:
         if not sug:
             return None
         rsid = runtime_session_id()
-        runtime = os.environ.get("REQLANE_RUNTIME") or ("claude-code" if os.environ.get("CLAUDECODE") else "cli")
+        runtime = os.environ.get("REPOMOOT_RUNTIME") or ("claude-code" if os.environ.get("CLAUDECODE") else "cli")
         res = c.post("/sessions/connect", agent=sug, kind="project", cwd=str(Path.cwd()), name=rsid, runtime=runtime,
                      runtime_ref=claude_session_name(), pid=os.getppid(), depends_on=[], description=None)
         s_ = res["session"]
         save_session(Path.cwd(), rsid, {"token": res["token"], "agent": s_["agent_id"], "session_id": s_["id"], "hook_cursor": res["cursor"]})
-        typer.echo(f"[reqlane] reconnected as {s_['agent_id']} (session {s_['id']}); run `reqlane address \"NAME [ref]\"` (from ListAgents) if you have not yet.", err=True)
+        typer.echo(f"[repomoot] reconnected as {s_['agent_id']} (session {s_['id']}); run `repomoot address \"NAME [ref]\"` (from ListAgents) if you have not yet.", err=True)
         return find_session()
     except ClientError:
         return None
@@ -89,8 +89,8 @@ def client(need_session: bool = True, human: bool = False) -> tuple[Client, dict
     if need_session and not ses:
         ses = auto_reconnect()
     if need_session and not ses:
-        fail(ClientError("this directory is not registered in Reqlane", "not_connected",
-                         "the user registers it by typing `/reqlane connect` (or `/reqlane po`) in the chat", 401))
+        fail(ClientError("this directory is not registered in Repomoot", "not_connected",
+                         "the user registers it by typing `/repomoot connect` (or `/repomoot po`) in the chat", 401))
     return Client(session_token=ses["token"] if ses else None, human=human_token_if_human() if human else None), ses
 
 
@@ -124,7 +124,7 @@ def opts_of(options: Optional[List[str]]) -> list[dict]:
 def notify_line(res: dict) -> str:
     n = res.get("notify") or []
     if not n:
-        return "notify: none online (they will see it on their next `reqlane inbox`)"
+        return "notify: none online (they will see it on their next `repomoot inbox`)"
     return "notify: " + ", ".join(dict.fromkeys(f"{t['agent']}[{t.get('runtime') or '?'}:{t['ref']}]" for t in n))
 
 
@@ -147,7 +147,7 @@ def serve():
         typer.echo(f"daemon already running at {url}")
         raise typer.Exit()
     from ..server.run import main
-    typer.echo(f"reqlane daemon {__version__} at {url}  (db: {config.db_path()})")
+    typer.echo(f"repomoot daemon {__version__} at {url}  (db: {config.db_path()})")
     main()
 
 
@@ -157,7 +157,7 @@ def status():
     """Daemon health, agents and online sessions."""
     c = Client(autostart=False)
     if not daemon_alive(c.base_url):
-        fail(ClientError(f"daemon not running at {c.base_url}", "daemon_unavailable", "reqlane serve", 503))
+        fail(ClientError(f"daemon not running at {c.base_url}", "daemon_unavailable", "repomoot serve", 503))
     h = c.get("/health")
     ag = c.get("/agents")
     lines = [f"daemon ok v{h['version']} protocol {h['protocol']}  po: {'present' if h['po_present'] else 'absent'}"]
@@ -191,19 +191,19 @@ def tick():
 @app.command()
 @guard
 def connect(agent: Optional[str] = typer.Argument(None, help="Agent id. Omit to use the agent registered for this directory."),
-            kind: str = typer.Option("project", help="project | po  (registration only; needs the human: TTY or REQLANE_HUMAN_TOKEN)"),
+            kind: str = typer.Option("project", help="project | po  (registration only; needs the human: TTY or REPOMOOT_HUMAN_TOKEN)"),
             name: Optional[str] = typer.Option(None, "--session", "-s", help="Session name (several sessions in one directory)."),
             depends_on: Optional[str] = typer.Option(None, help="Comma-separated agents this project depends on (human only)."),
             description: Optional[str] = typer.Option(None, help="(human only)"),
             no_card: bool = typer.Option(False, "--no-card", help="Do not print the protocol card.")):
     """Connect this directory's session to an agent. First-time registration (repo = cwd) is done by the human."""
     cwd = Path.cwd()
-    name = name or os.environ.get("REQLANE_SESSION") or runtime_session_id() or None
-    runtime = os.environ.get("REQLANE_RUNTIME") or ("claude-code" if os.environ.get("CLAUDECODE") else "cli")
+    name = name or os.environ.get("REPOMOOT_SESSION") or runtime_session_id() or None
+    runtime = os.environ.get("REPOMOOT_RUNTIME") or ("claude-code" if os.environ.get("CLAUDECODE") else "cli")
     existing = find_session(cwd, name, exact=True)
     c = Client(human=human_token_if_human())
     res = c.post("/sessions/connect", agent=agent, kind=kind, cwd=str(cwd), name=name, runtime=runtime,
-                 runtime_ref=os.environ.get("REQLANE_RUNTIME_REF") or claude_session_name() or name, pid=os.getppid(), depends_on=csv(depends_on), description=description)
+                 runtime_ref=os.environ.get("REPOMOOT_RUNTIME_REF") or claude_session_name() or name, pid=os.getppid(), depends_on=csv(depends_on), description=description)
     ses = res["session"]
     save_session(cwd, name, {"token": res["token"], "agent": ses["agent_id"], "session_id": ses["id"], "hook_cursor": res["cursor"]})
     who = res["who"]
@@ -262,7 +262,7 @@ def agents_list(ctx: typer.Context):
         on = ", ".join(s.get("name") or s["id"] for s in a["sessions"]) or "offline"
         deps = f" depends_on={','.join(a['depends_on'])}" if a["depends_on"] else ""
         lines.append(f"{a['id']:<14} {a['kind']:<14} {on:<20} open→{a['open_requests_to']}{deps}")
-    emit(res, "\n".join(lines) or "no agents; the human registers one with `reqlane connect <name>` inside its repository")
+    emit(res, "\n".join(lines) or "no agents; the human registers one with `repomoot connect <name>` inside its repository")
 
 
 @agents_app.command("set")
@@ -346,7 +346,7 @@ def req_new(to: str = typer.Option(..., help="Recipient agent."),
     r = res["request"]
     dup = " (duplicate of an earlier call; nothing created)" if res.get("duplicate") else ""
     emit(res, f"{r['id']} created ({r['type']}{', blocking' if r['blocking'] else ''}) → {r['to_agent']}{dup}\n{notify_line(res)}"
-              + (f"\nnext: reqlane wait --req {r['id']}" if r["blocking"] else ""))
+              + (f"\nnext: repomoot wait --req {r['id']}" if r["blocking"] else ""))
 
 
 @req_app.command("list")
@@ -539,7 +539,7 @@ def _po_created_text(res: dict) -> str:
     holder = "Show" if routed in (None, r["from_agent"]) else f"{routed} shows"
     return (f"{r['id']} decision created; po_present: false → mode: local (with {routed})\n"
             f"{holder} the question to the user in the chat, in their language, with the options and a recommendation; then either\n"
-            f"  reqlane decide {r['id']} --author human --option <id> --reason \"<user's words>\"   or   reqlane handoff {r['id']}")
+            f"  repomoot decide {r['id']} --author human --option <id> --reason \"<user's words>\"   or   repomoot handoff {r['id']}")
 
 
 @app.command("ask-po")
@@ -656,7 +656,7 @@ def art_list(type_: Optional[str] = typer.Option(None, "--type"), request: Optio
 @guard
 def agr_publish(title: str = typer.Option(...), parties: str = typer.Option(..., help="Comma-separated agents."),
                 body: Optional[str] = typer.Option(None), body_file: Optional[Path] = None, supersedes: Optional[str] = None):
-    """Record a cross-project rule. Parties acknowledge with `reqlane agreement ack`."""
+    """Record a cross-project rule. Parties acknowledge with `repomoot agreement ack`."""
     c, _ = client()
     res = c.post("/agreements", title=title, content=read_body(body, body_file), parties=csv(parties), supersedes=supersedes)
     g = res["agreement"]
@@ -764,7 +764,7 @@ def install(runtime: str = typer.Option("claude-code", help="claude-code|codex|g
     """Install the runtime adapter: 3-line pointer, thin skill, hooks. Shows what it writes first."""
     plan = inst.plan(runtime, dir_, hooks)
     if plan:
-        typer.echo("reqlane install will write:")
+        typer.echo("repomoot install will write:")
         for action, path, desc in plan:
             typer.echo(f"  {action:<12} {path}  — {desc}")
         if not yes and not typer.confirm("Proceed?", default=False):
@@ -778,12 +778,12 @@ def install(runtime: str = typer.Option("claude-code", help="claude-code|codex|g
             pass
     for line in inst.install(runtime, dir_, hooks, who):
         typer.echo(line)
-    typer.echo("undo: reqlane uninstall --runtime " + runtime)
+    typer.echo("undo: repomoot uninstall --runtime " + runtime)
 
 
 @app.command()
 def uninstall(runtime: str = typer.Option("claude-code"), dir_: Optional[Path] = typer.Option(None, "--dir")):
-    """Remove what `reqlane install` wrote (pointer block, skill, hooks)."""
+    """Remove what `repomoot install` wrote (pointer block, skill, hooks)."""
     for line in inst.uninstall(runtime, dir_):
         typer.echo(line)
 
@@ -821,7 +821,7 @@ def hook_session_start():
         c = Client(autostart=True)
         sug = c.get("/agent-for-cwd", cwd=str(Path.cwd())).get("agent")
         if not sug:
-            typer.echo("[reqlane] This repository is not registered in Reqlane. The user can type `/reqlane connect` to register it (or `/reqlane po` for the product owner).")
+            typer.echo("[repomoot] This repository is not registered in Repomoot. The user can type `/repomoot connect` to register it (or `/repomoot po` for the product owner).")
             return
         rsid = runtime_session_id()
         res = c.post("/sessions/connect", agent=sug, kind="project", cwd=str(Path.cwd()), name=rsid, runtime="claude-code",
@@ -829,13 +829,13 @@ def hook_session_start():
         s_ = res["session"]
         save_session(Path.cwd(), rsid, {"token": res["token"], "agent": s_["agent_id"], "session_id": s_["id"], "hook_cursor": res["cursor"]})
         ses = find_session(exact=True)
-        typer.echo(f"[reqlane] Reconnected automatically as agent {s_['agent_id']} (session {s_['id']}). "
-                   f"Call ListAgents and run `reqlane address \"NAME [ref]\"` with its `This session is …` line so others can wake you.")
+        typer.echo(f"[repomoot] Reconnected automatically as agent {s_['agent_id']} (session {s_['id']}). "
+                   f"Call ListAgents and run `repomoot address \"NAME [ref]\"` with its `This session is …` line so others can wake you.")
     c = Client(session_token=ses["token"], autostart=False)
     who = c.get("/whoami")
     ib = c.get("/inbox")
     card = c.get("/protocol", runtime=who.get("runtime"))["card"]
-    typer.echo(f"[reqlane] Agent: {who['agent']} ({who['kind']}), session {who['session']}. PO: {'present' if who['po_present'] else 'absent'}.")
+    typer.echo(f"[repomoot] Agent: {who['agent']} ({who['kind']}), session {who['session']}. PO: {'present' if who['po_present'] else 'absent'}.")
     hint = _exe_hint()
     if hint:
         typer.echo(hint)
@@ -852,8 +852,8 @@ def agents_block(c: Client) -> str:
     except ClientError:
         return ""
     if not ag:
-        return "[reqlane] no other agents registered yet."
-    lines = ["[reqlane] Agents in this workspace (you can ask any of them or order work from them):"]
+        return "[repomoot] no other agents registered yet."
+    lines = ["[repomoot] Agents in this workspace (you can ask any of them or order work from them):"]
     for a in ag:
         repos = ", ".join(Path(r).name for r in a.get("repos") or []) or "-"
         state = "online" if a["sessions"] else "offline (will read its inbox when it connects)"
@@ -864,9 +864,9 @@ def agents_block(c: Client) -> str:
 
 def _exe_hint() -> str:
     import shutil
-    if shutil.which("reqlane"):
+    if shutil.which("repomoot"):
         return ""
-    return f'[reqlane] `reqlane` is not on PATH in this shell; call it as "{inst.aw_executable()}" (same arguments).'
+    return f'[repomoot] `repomoot` is not on PATH in this shell; call it as "{inst.aw_executable()}" (same arguments).'
 
 
 def claude_session_name() -> str | None:
@@ -908,7 +908,7 @@ def _hook_input() -> dict:
 
 
 def _human_command(argv: list[str]) -> bool:
-    """`/reqlane start|connect|po|depends|status|disconnect` typed by the user in chat.
+    """`/repomoot start|connect|po|depends|status|disconnect` typed by the user in chat.
 
     The prompt hook fires only on human input, so this is the human principal: the hook performs
     the action with the human token and prints the result for the agent to relay."""
@@ -923,8 +923,8 @@ def _human_command(argv: list[str]) -> bool:
             c = Client(human=human)
             h = c.get("/health")
             ag = c.get("/agents")["agents"]
-            out.append(f"[reqlane] workspace running at {c.base_url} (v{h['version']}); agents: " + (", ".join(a['id'] + ('*' if a['sessions'] else '') for a in ag) or "none yet") + ".")
-            out.append("Next: `/reqlane connect` in each project's session, `/reqlane po` in the product owner's session.")
+            out.append(f"[repomoot] workspace running at {c.base_url} (v{h['version']}); agents: " + (", ".join(a['id'] + ('*' if a['sessions'] else '') for a in ag) or "none yet") + ".")
+            out.append("Next: `/repomoot connect` in each project's session, `/repomoot po` in the product owner's session.")
         elif cmd in ("connect", "po"):
             name = None
             deps: list[str] = []
@@ -946,13 +946,13 @@ def _human_command(argv: list[str]) -> bool:
             ses = res["session"]
             save_session(cwd, rsid, {"token": res["token"], "agent": ses["agent_id"], "session_id": ses["id"], "hook_cursor": res["cursor"]})
             who = res["who"]
-            out.append(f"[reqlane] connected by the user: this session is agent **{who['agent']}** ({who['kind']}), session {ses['id']}"
+            out.append(f"[repomoot] connected by the user: this session is agent **{who['agent']}** ({who['kind']}), session {ses['id']}"
                        f"{(' (Claude session ' + ses['runtime_ref'] + ')') if ses.get('runtime_ref') else ''}. PO: {'present' if res['po_present'] else 'absent'}.")
             if who["kind"] != "product_owner":
                 out.append(f"repos: {', '.join(who['repos'])}  depends_on: {', '.join(who['depends_on']) or '-'}  consumers: {', '.join(who['consumers']) or '-'}")
-            out.append("Do NOT run `reqlane connect` yourself — it is done. Tell the user in one line, then follow the card below.")
+            out.append("Do NOT run `repomoot connect` yourself — it is done. Tell the user in one line, then follow the card below.")
             out.append("FIRST: call your ListAgents tool, take its line `This session is NAME [ref]` and run "
-                       "`reqlane address \"NAME [ref]\"` — that is how other agents will wake you.")
+                       "`repomoot address \"NAME [ref]\"` — that is how other agents will wake you.")
             out.append(agents_block(c))
             out.append("")
             out.append(res["card"].rstrip())
@@ -961,36 +961,36 @@ def _human_command(argv: list[str]) -> bool:
         elif cmd == "depends":
             ses = find_session()
             if not ses:
-                out.append("[reqlane] not connected here; `/reqlane connect` first.")
+                out.append("[repomoot] not connected here; `/repomoot connect` first.")
             else:
                 res = Client(human=human).post(f"/agents/{ses['agent']}", depends_on=csv(" ".join(args).replace(" ", ",")))
-                out.append(f"[reqlane] {ses['agent']} now depends on: {', '.join(res['depends_on']) or '-'}. Tell the user; nothing else to do.")
+                out.append(f"[repomoot] {ses['agent']} now depends on: {', '.join(res['depends_on']) or '-'}. Tell the user; nothing else to do.")
         elif cmd == "ui":
             import webbrowser
             c = Client(human=human)
             c.get("/health")
             url = f"{c.base_url}/ui?token={config.token()}"
             webbrowser.open(url)
-            out.append(f"[reqlane] UI opened in the browser: {url} . Tell the user; nothing else to do.")
+            out.append(f"[repomoot] UI opened in the browser: {url} . Tell the user; nothing else to do.")
         elif cmd == "status":
             c = Client(autostart=False)
             if not daemon_alive(c.base_url):
-                out.append("[reqlane] workspace is not running; `/reqlane start`.")
+                out.append("[repomoot] workspace is not running; `/repomoot start`.")
             else:
                 ag = c.get("/agents")["agents"]
-                out.append("[reqlane] agents: " + (", ".join(f"{a['id']} ({', '.join(s.get('name') or s['id'] for s in a['sessions']) or 'offline'}, open→{a['open_requests_to']})" for a in ag) or "none") + ". Relay this to the user.")
+                out.append("[repomoot] agents: " + (", ".join(f"{a['id']} ({', '.join(s.get('name') or s['id'] for s in a['sessions']) or 'offline'}, open→{a['open_requests_to']})" for a in ag) or "none") + ". Relay this to the user.")
         elif cmd in ("disconnect", "stop"):
             ses = find_session(exact=True)
             if ses:
                 Client(session_token=ses["token"], autostart=False).post("/sessions/disconnect")
                 drop_session(ses)
-                out.append(f"[reqlane] session of {ses['agent']} disconnected. Tell the user; nothing else to do.")
+                out.append(f"[repomoot] session of {ses['agent']} disconnected. Tell the user; nothing else to do.")
             else:
-                out.append("[reqlane] nothing connected in this directory.")
+                out.append("[repomoot] nothing connected in this directory.")
         else:
             return False
     except ClientError as e:
-        out.append(f"[reqlane] {cmd} failed: {e} [{e.code}]" + (f" — {e.hint}" if e.hint else "") + ". Tell the user; do not retry yourself.")
+        out.append(f"[repomoot] {cmd} failed: {e} [{e.code}]" + (f" — {e.hint}" if e.hint else "") + ". Tell the user; do not retry yourself.")
     hint = _exe_hint()
     if hint:
         out.append(hint)
@@ -1001,7 +1001,7 @@ def _human_command(argv: list[str]) -> bool:
 @hook_app.command("prompt")
 @_quiet
 def hook_prompt():
-    """UserPromptSubmit: handle `/reqlane start|connect|po|...` typed by the user; else one line per new event."""
+    """UserPromptSubmit: handle `/repomoot start|connect|po|...` typed by the user; else one line per new event."""
     data = _hook_input()
     if data.get("cwd"):
         try:
@@ -1009,7 +1009,7 @@ def hook_prompt():
         except OSError:
             pass
     prompt = (data.get("prompt") or "").strip()
-    if prompt.startswith("/reqlane"):
+    if prompt.startswith("/repomoot"):
         argv = prompt.split()[1:]
         if argv and argv[0] in ("start", "connect", "po", "depends", "status", "disconnect", "stop", "ui") and _human_command(argv):
             return
@@ -1020,7 +1020,7 @@ def hook_prompt():
     res = c.get("/events", since=int(ses.get("hook_cursor") or 0), limit=20)
     if res["events"]:
         update_session(ses, hook_cursor=res["cursor"])
-        typer.echo(f"[reqlane] {len(res['events'])} new — run `reqlane inbox`. " + cards.UNTRUSTED_BANNER)
+        typer.echo(f"[repomoot] {len(res['events'])} new — run `repomoot inbox`. " + cards.UNTRUSTED_BANNER)
         for e in res["events"][:5]:
             typer.echo("  " + fmt.event_line(e))
 
@@ -1034,10 +1034,10 @@ def hook_stop():
         return
     ib = Client(session_token=ses["token"], autostart=False).get("/inbox")
     if ib.get("blocking"):
-        typer.echo(f"[reqlane] {len(ib['blocking'])} blocking request(s) await you: " + ", ".join(r["id"] for r in ib["blocking"]))
+        typer.echo(f"[repomoot] {len(ib['blocking'])} blocking request(s) await you: " + ", ".join(r["id"] for r in ib["blocking"]))
     waiting = [r for r in ib.get("waiting_on_others", []) if r.get("blocking")]
     if waiting:
-        typer.echo("[reqlane] waiting on: " + ", ".join(f"{r['id']} ({r['to_agent']})" for r in waiting))
+        typer.echo("[repomoot] waiting on: " + ", ".join(f"{r['id']} ({r['to_agent']})" for r in waiting))
 
 
 @hook_app.command("session-end")
@@ -1054,7 +1054,7 @@ def hook_session_end():
 @hook_app.command("pre-compact")
 @_quiet
 def hook_pre_compact():
-    """PreCompact: refresh the Reqlane block in docs/HANDOVER.md (inside your repo only)."""
+    """PreCompact: refresh the Repomoot block in docs/HANDOVER.md (inside your repo only)."""
     ses = find_session()
     if not ses:
         return
@@ -1064,7 +1064,7 @@ def hook_pre_compact():
     f = inst.find_handover(Path.cwd(), who.get("repos") or [])
     if f:
         inst.write_handover(f, block)
-        typer.echo(f"[reqlane] open requests written to {f}")
+        typer.echo(f"[repomoot] open requests written to {f}")
     else:
         typer.echo(block)
 

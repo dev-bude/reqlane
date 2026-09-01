@@ -1,5 +1,5 @@
 [project]
-name = "reqlane"
+name = "repomoot"
 dynamic = ["version"]
 description = "Requests between AI coding agents that own different repositories, with consumer acceptance and owner escalation"
 requires-python = ">=3.12"
@@ -21,30 +21,30 @@ classifiers = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/dev-bude/reqlane"
-Repository = "https://github.com/dev-bude/reqlane"
-Issues = "https://github.com/dev-bude/reqlane/issues"
-Protocol = "https://github.com/dev-bude/reqlane/blob/main/PROTOCOL.md"
-Security = "https://github.com/dev-bude/reqlane/blob/main/SECURITY.md"
+Homepage = "https://github.com/dev-bude/repomoot"
+Repository = "https://github.com/dev-bude/repomoot"
+Issues = "https://github.com/dev-bude/repomoot/issues"
+Protocol = "https://github.com/dev-bude/repomoot/blob/main/PROTOCOL.md"
+Security = "https://github.com/dev-bude/repomoot/blob/main/SECURITY.md"
 
 [project.optional-dependencies]
 dev = ["pytest>=8"]
 
 [project.scripts]
-reqlane = "reqlane.cli.main:app"
+repomoot = "repomoot.cli.main:app"
 
 [build-system]
 requires = ["setuptools>=77"]
 build-backend = "setuptools.build_meta"
 
 [tool.setuptools.dynamic]
-version = {attr = "reqlane.__version__"}
+version = {attr = "repomoot.__version__"}
 
 [tool.setuptools.packages.find]
-include = ["reqlane*"]
+include = ["repomoot*"]
 
 [tool.setuptools.package-data]
-reqlane = ["server/ui.html"]
+repomoot = ["server/ui.html"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

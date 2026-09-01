@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<title>Reqlane</title>
+<title>Repomoot</title>
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <style>
   :root { --bg:#0f1115; --card:#171a21; --line:#2a2f3a; --fg:#e6e6e6; --dim:#8b93a7; --ok:#3fb950; --warn:#d29922; --bad:#f85149; --acc:#58a6ff; --po:#bc8cff; }
@@ -54,7 +54,7 @@
 </head>
 <body>
 <header>
-  <h1>Reqlane</h1>
+  <h1>Repomoot</h1>
   <div id="agents"></div>
   <span class="toggle" id="showClosed">hide closed</span>
 </header>
@@ -162,7 +162,7 @@ function reqCard(r, byId, data, depth=0){
 async function tick(){
   try {
     const r = await fetch("/ui/data?token=" + encodeURIComponent(token));
-    if (!r.ok) { setBanner("auth failed (" + r.status + ") — open the page via `reqlane ui` / `/reqlane ui`"); document.getElementById("status").textContent = "auth failed"; return; }
+    if (!r.ok) { setBanner("auth failed (" + r.status + ") — open the page via `repomoot ui` / `/repomoot ui`"); document.getElementById("status").textContent = "auth failed"; return; }
     const data = await r.json();
     setBanner("");
     render(data);
@@ -170,7 +170,7 @@ async function tick(){
     const ev = data.recent_events || [];
     document.getElementById("feed").textContent = ev.slice(-3).map(e => `#${e.id} ${e.type} ${e.request_id||""}`).join("   ");
   } catch (e) {
-    setBanner("Workspace daemon is not reachable on this port. Any `reqlane` command (or `/reqlane start` in a Claude session) starts it; this page keeps retrying.");
+    setBanner("Workspace daemon is not reachable on this port. Any `repomoot` command (or `/repomoot start` in a Claude session) starts it; this page keeps retrying.");
     document.getElementById("ws").innerHTML = "daemon <span class='off'>● stopped</span>";
     document.getElementById("status").textContent = "daemon unreachable · retrying";
   }

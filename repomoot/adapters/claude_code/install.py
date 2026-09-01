@@ -1,4 +1,4 @@
-"""`reqlane install` / `reqlane uninstall` for runtimes. The workspace owns the instruction texts; the
+"""`repomoot install` / `repomoot uninstall` for runtimes. The workspace owns the instruction texts; the
 runtime only gets a three-line pointer, a thin skill and hooks that ask the daemon for the card."""
 from __future__ import annotations
 
@@ -12,53 +12,53 @@ from pathlib import Path
 
 from ...core import cards
 
-BEGIN, END = "<!-- reqlane:begin -->", "<!-- reqlane:end -->"
-REQLANE_HOOK_RE = re.compile(r"""reqlane(\.exe)?["']?\s+hook\s""", re.IGNORECASE)
+BEGIN, END = "<!-- repomoot:begin -->", "<!-- repomoot:end -->"
+REPOMOOT_HOOK_RE = re.compile(r"""repomoot(\.exe)?["']?\s+hook\s""", re.IGNORECASE)
 
 
 def is_aw_hook(entry: dict) -> bool:
-    return any(REQLANE_HOOK_RE.search(h.get("command", "")) for h in entry.get("hooks", []))
+    return any(REPOMOOT_HOOK_RE.search(h.get("command", "")) for h in entry.get("hooks", []))
 
 SKILL = """---
-name: reqlane
-description: Reqlane shortcuts — connect this session, read the inbox, create a request to another project's agent, ask the Product Owner, deliver, evaluate. Use when the user says "/reqlane", "ask <agent>", "hand over to PO", "what's in the inbox" — in any language.
+name: repomoot
+description: Repomoot shortcuts — connect this session, read the inbox, create a request to another project's agent, ask the Product Owner, deliver, evaluate. Use when the user says "/repomoot", "ask <agent>", "hand over to PO", "what's in the inbox" — in any language.
 ---
 
-# /reqlane — Reqlane
+# /repomoot — Repomoot
 
 ## Handled by the user's hook — do NOT run anything for these
 
-`/reqlane start`, `/reqlane connect [name] [--depends-on a,b]`, `/reqlane po`, `/reqlane depends a,b`,
-`/reqlane status`, `/reqlane ui`, `/reqlane disconnect` are executed by the `UserPromptSubmit` hook with the
+`/repomoot start`, `/repomoot connect [name] [--depends-on a,b]`, `/repomoot po`, `/repomoot depends a,b`,
+`/repomoot status`, `/repomoot ui`, `/repomoot disconnect` are executed by the `UserPromptSubmit` hook with the
 user's own authority before you see them. Their result is already in your context as a
-`[reqlane] …` block. Your only job: tell the user in one line what happened (e.g. "Connected as
+`[repomoot] …` block. Your only job: tell the user in one line what happened (e.g. "Connected as
 agent gridlib; PO absent; inbox empty"), then — if a card was printed — call ListAgents and run
-`reqlane address "NAME [ref]"` with its `This session is …` line, and follow the card from now on.
-If no `[reqlane]` block appeared, say so — the hooks are probably not installed
-(`reqlane install --runtime claude-code --hooks` in the user's terminal).
+`repomoot address "NAME [ref]"` with its `This session is …` line, and follow the card from now on.
+If no `[repomoot]` block appeared, say so — the hooks are probably not installed
+(`repomoot install --runtime claude-code --hooks` in the user's terminal).
 
-## Everything else — thin wrappers over the `reqlane` CLI (`reqlane --help`)
+## Everything else — thin wrappers over the `repomoot` CLI (`repomoot --help`)
 
-The rules are the protocol card (printed at connect / session start; `reqlane protocol` reprints it).
-If `reqlane` is not on PATH, use the full path given in the `[reqlane]` line.
+The rules are the protocol card (printed at connect / session start; `repomoot protocol` reprints it).
+If `repomoot` is not on PATH, use the full path given in the `[repomoot]` line.
 
-- `/reqlane inbox` → `reqlane inbox`. Blocking first.
-- `/reqlane wait` → `reqlane wait` (blocks up to 10 min until something happens), then act on it.
-- `/reqlane request <agent>` → collect title, goal, constraints, acceptance, code refs from the
-  conversation (ask only for what is missing), then `reqlane req new --to <agent> --type ... --body -`.
-- `/reqlane ask <agent> <text>` → `reqlane req new --to <agent> --type question --title "<short>" --body -`.
-- `/reqlane po <text>` → `reqlane ask-po --title "<short>" --kind <kind> --option "A: ..." --body -`;
+- `/repomoot inbox` → `repomoot inbox`. Blocking first.
+- `/repomoot wait` → `repomoot wait` (blocks up to 10 min until something happens), then act on it.
+- `/repomoot request <agent>` → collect title, goal, constraints, acceptance, code refs from the
+  conversation (ask only for what is missing), then `repomoot req new --to <agent> --type ... --body -`.
+- `/repomoot ask <agent> <text>` → `repomoot req new --to <agent> --type question --title "<short>" --body -`.
+- `/repomoot po <text>` → `repomoot ask-po --title "<short>" --kind <kind> --option "A: ..." --body -`;
   if `po_present: false`, present the choice to the user in their language and wait.
-- `/reqlane po handoff <req>` → `reqlane handoff <req>`.
-- `/reqlane reply <req> <text>` → `reqlane reply <req> --body -`.
-- `/reqlane deliver <req>` → run the project's verification gate, then `reqlane deliver <req> --repo <you> --commit $(git rev-parse HEAD) --tests-passed|--tests-failed --body -`.
-- `/reqlane eval <req>` → integrate, measure, then `reqlane evaluate <req> --verdict accepted|rejected --body -`.
-- `/reqlane status [req]` → `reqlane req list` or `reqlane req show <req>`.
+- `/repomoot po handoff <req>` → `repomoot handoff <req>`.
+- `/repomoot reply <req> <text>` → `repomoot reply <req> --body -`.
+- `/repomoot deliver <req>` → run the project's verification gate, then `repomoot deliver <req> --repo <you> --commit $(git rev-parse HEAD) --tests-passed|--tests-failed --body -`.
+- `/repomoot eval <req>` → integrate, measure, then `repomoot evaluate <req> --verdict accepted|rejected --body -`.
+- `/repomoot status [req]` → `repomoot req list` or `repomoot req show <req>`.
 """
 
 
 def aw_executable() -> str:
-    exe = shutil.which("reqlane") or str(Path(sys.executable).with_name("reqlane.exe" if sys.platform == "win32" else "reqlane"))
+    exe = shutil.which("repomoot") or str(Path(sys.executable).with_name("repomoot.exe" if sys.platform == "win32" else "repomoot"))
     return exe.replace("\\", "/")
 
 
@@ -73,7 +73,7 @@ def hooks_settings() -> dict:
 
 
 def _replace_block(path: Path, text: str | None) -> str:
-    """Insert/replace (text) or remove (None) the reqlane block. Returns the action taken."""
+    """Insert/replace (text) or remove (None) the repomoot block. Returns the action taken."""
     cur = path.read_text(encoding="utf-8") if path.exists() else ""
     if BEGIN in cur and END in cur:
         pre, rest = cur.split(BEGIN, 1)
@@ -98,10 +98,10 @@ def plan(runtime: str, target_dir: Path | None, hooks: bool) -> list[tuple[str, 
     """What install would write: (action, path, description)."""
     if runtime == "claude-code":
         home = claude_home()
-        out = [("write-block", home / "CLAUDE.md", "3-line pointer between <!-- reqlane:begin/end --> markers"),
-               ("write", home / "skills" / "reqlane" / "SKILL.md", "the /reqlane skill")]
+        out = [("write-block", home / "CLAUDE.md", "3-line pointer between <!-- repomoot:begin/end --> markers"),
+               ("write", home / "skills" / "repomoot" / "SKILL.md", "the /repomoot skill")]
         if hooks:
-            out.append(("merge", home / "settings.json", "hooks SessionStart/UserPromptSubmit/Stop/SessionEnd → `reqlane hook ...` (backup made)"))
+            out.append(("merge", home / "settings.json", "hooks SessionStart/UserPromptSubmit/Stop/SessionEnd → `repomoot hook ...` (backup made)"))
         return out
     files = {"codex": "AGENTS.md", "gemini": "GEMINI.md", "cursor": ".cursorrules"}
     if runtime in files and target_dir:
@@ -114,7 +114,7 @@ def install(runtime: str, target_dir: Path | None, hooks: bool, who: dict | None
     if runtime == "claude-code":
         home = claude_home()
         log.append(f"{_replace_block(home / 'CLAUDE.md', cards.CLAUDE_CODE_POINTER)}: {home / 'CLAUDE.md'}")
-        skill = home / "skills" / "reqlane" / "SKILL.md"
+        skill = home / "skills" / "repomoot" / "SKILL.md"
         skill.parent.mkdir(parents=True, exist_ok=True)
         skill.write_text(SKILL, encoding="utf-8")
         log.append(f"written: {skill}")
@@ -149,7 +149,7 @@ def uninstall(runtime: str, target_dir: Path | None) -> list[str]:
     if runtime == "claude-code":
         home = claude_home()
         log.append(f"{_replace_block(home / 'CLAUDE.md', None)}: {home / 'CLAUDE.md'}")
-        skill = home / "skills" / "reqlane"
+        skill = home / "skills" / "repomoot"
         if skill.exists():
             shutil.rmtree(skill)
             log.append(f"removed: {skill}")
@@ -177,21 +177,21 @@ def uninstall(runtime: str, target_dir: Path | None) -> list[str]:
 
 
 def handover_block(agent: str, rows: list[dict]) -> str:
-    L = [f"<!-- reqlane:handover:begin -->", f"## Reqlane ({agent}) — {datetime.now():%Y-%m-%d %H:%M}"]
+    L = [f"<!-- repomoot:handover:begin -->", f"## Repomoot ({agent}) — {datetime.now():%Y-%m-%d %H:%M}"]
     if not rows:
         L.append("- no open requests")
     for r in rows:
         actor = r.get("actor")
         L.append(f"- {r['id']} {r['type']} {r['from_agent']}→{r['to_agent']} {r['status']}{' [blocking]' if r.get('blocking') else ''}: {r['title']}"
                  + (f" (next: {'me' if actor == agent else actor})" if actor else ""))
-    L.append("- resume with: `reqlane inbox`, `reqlane req show <id>`")
-    L.append("<!-- reqlane:handover:end -->")
+    L.append("- resume with: `repomoot inbox`, `repomoot req show <id>`")
+    L.append("<!-- repomoot:handover:end -->")
     return "\n".join(L)
 
 
 def write_handover(f: Path, block: str) -> None:
     cur = f.read_text(encoding="utf-8") if f.exists() else ""
-    b, e = "<!-- reqlane:handover:begin -->", "<!-- reqlane:handover:end -->"
+    b, e = "<!-- repomoot:handover:begin -->", "<!-- repomoot:handover:end -->"
     if b in cur and e in cur:
         pre, rest = cur.split(b, 1)
         _, post = rest.split(e, 1)

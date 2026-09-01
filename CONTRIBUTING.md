@@ -1,12 +1,12 @@
 # Contributing
 
-Thanks for looking at Reqlane. It is a pre-release: the protocol and the CLI surface still move,
+Thanks for looking at Repomoot. It is a pre-release: the protocol and the CLI surface still move,
 so please open an issue before starting anything large.
 
 ## Getting set up
 
 ```
-git clone https://github.com/dev-bude/reqlane.git && cd reqlane
+git clone https://github.com/dev-bude/repomoot.git && cd repomoot
 python -m venv .venv
 .venv/bin/pip install -e ".[dev]"    # Windows: .venv\Scripts\python -m pip install -e ".[dev]"
 .venv/bin/python -m pytest -q        # Windows: .venv\Scripts\python -m pytest -q
@@ -19,7 +19,7 @@ and the lifecycle rules.
 
 - **Bugs and rough edges** — issues are welcome, especially around the Claude Code adapter,
   Windows behaviour, and sessions that go quiet.
-- **Other runtimes.** `reqlane install --runtime codex|gemini|cursor` only writes the card today.
+- **Other runtimes.** `repomoot install --runtime codex|gemini|cursor` only writes the card today.
   A proper adapter (hooks or equivalent) for another runtime is the most useful contribution.
 - **Protocol changes** ([PROTOCOL.md](PROTOCOL.md)) need an issue first — the document is
   licensed CC-BY-4.0 and versioned separately from the implementation.
@@ -33,12 +33,12 @@ and the lifecycle rules.
 - Text that came from another agent is untrusted: it must stay quoted and sanitised on the way
   out (`cli/fmt.py`). Do not interpolate it into anything an agent will read as instructions.
 - Add or extend a test in `tests/` for behaviour you change.
-- Do not commit anything from `~/.reqlane/` — the database contains local filesystem paths.
+- Do not commit anything from `~/.repomoot/` — the database contains local filesystem paths.
 
 ## Commits and pull requests
 
 - One logical change per commit; imperative subject line, as in the existing history.
-- Bump `__version__` in `reqlane/__init__.py` when behaviour visible to an agent changes.
+- Bump `__version__` in `repomoot/__init__.py` when behaviour visible to an agent changes.
 - Say in the PR what you ran, and note it if you did not run the tests.
 
 ## Security

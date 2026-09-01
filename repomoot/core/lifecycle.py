@@ -73,37 +73,37 @@ def next_actions(req: dict, me: str) -> list[str]:
     if s in TERMINAL:
         return out
     if t == "notice":
-        return [f"reqlane req ack {rid}"] if recipient and s == "open" else []
+        return [f"repomoot req ack {rid}"] if recipient and s == "open" else []
     if t == "decision":
         if s == "local" and req.get("routed_to") == me:
-            out += [f"reqlane decide {rid} --author human --option <id> --reason \"<user's words>\"", f"reqlane handoff {rid}"]
+            out += [f"repomoot decide {rid} --author human --option <id> --reason \"<user's words>\"", f"repomoot handoff {rid}"]
         elif recipient and s in {"open", "deliberation"}:
-            out += [f"reqlane decide {rid} --option <id> --reason ... --affected a,b", f"reqlane po delegate {rid} --reason ..."]
+            out += [f"repomoot decide {rid} --option <id> --reason ... --affected a,b", f"repomoot po delegate {rid} --reason ..."]
         if initiator and s not in {"local"}:
-            out.append(f"reqlane req withdraw {rid}")
+            out.append(f"repomoot req withdraw {rid}")
         return out
     if recipient and s == "open":
-        out += [f"reqlane reply {rid} --body ...", f"reqlane req decline {rid} --reason ...", f"reqlane req reassign {rid} --to <agent>"]
+        out += [f"repomoot reply {rid} --body ...", f"repomoot req decline {rid} --reason ...", f"repomoot req reassign {rid} --to <agent>"]
     if recipient and s in {"discussion", "triage", "review", "in_review"}:
-        out.append(f"reqlane reply {rid} --body ...")
+        out.append(f"repomoot reply {rid} --body ...")
         if t in {"capability", "task"}:
-            out.append(f"reqlane propose {rid} --title ... --option \"A: ...\" --recommend A --body ...")
+            out.append(f"repomoot propose {rid} --title ... --option \"A: ...\" --recommend A --body ...")
         if t in {"bug", "change"}:
-            out.append(f"reqlane deliver {rid} --repo <you> --commit <hash> --tests-passed|--tests-failed --body ...")
+            out.append(f"repomoot deliver {rid} --repo <you> --commit <hash> --tests-passed|--tests-failed --body ...")
         if t in {"question", "review"}:
-            out.append(f"reqlane reply {rid} --type answer --body ...")
+            out.append(f"repomoot reply {rid} --type answer --body ...")
         if s in DECLINE_FROM:
-            out.append(f"reqlane req decline {rid} --reason ...")
+            out.append(f"repomoot req decline {rid} --reason ...")
     if initiator and s == "proposal":
-        out += [f"reqlane req accept {rid} --option <id>", f"reqlane reply {rid} --body ...", f"reqlane req escalate {rid} --question ... --kind ..."]
+        out += [f"repomoot req accept {rid} --option <id>", f"repomoot reply {rid} --body ...", f"repomoot req escalate {rid} --question ... --kind ..."]
     if recipient and s == "implementation":
-        out += [f"reqlane deliver {rid} --repo <you> --commit <hash> --tests-passed|--tests-failed --body ...", f"reqlane reply {rid} --body ..."]
+        out += [f"repomoot deliver {rid} --repo <you> --commit <hash> --tests-passed|--tests-failed --body ...", f"repomoot reply {rid} --body ..."]
     if initiator and s == "evaluation":
-        out += [f"reqlane evaluate {rid} --verdict accepted|rejected --body ...", f"reqlane reply {rid} --body ..."]
+        out += [f"repomoot evaluate {rid} --verdict accepted|rejected --body ...", f"repomoot reply {rid} --body ..."]
     if initiator and s == "answered":
-        out += [f"reqlane req close {rid}", f"reqlane reply {rid} --body ..."]
+        out += [f"repomoot req close {rid}", f"repomoot reply {rid} --body ..."]
     if initiator and s == "declined":
-        out += [f"reqlane req escalate {rid} --question ... --kind conflict", f"reqlane req withdraw {rid}"]
+        out += [f"repomoot req escalate {rid} --question ... --kind conflict", f"repomoot req withdraw {rid}"]
     if initiator and s not in TERMINAL and s != "declined":
-        out.append(f"reqlane req withdraw {rid}")
+        out.append(f"repomoot req withdraw {rid}")
     return out

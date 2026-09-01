@@ -133,12 +133,12 @@ def inbox_view(ib: dict, me: str) -> str:
         for r in rows[:15]:
             L.append("  " + req_line(r, me))
         if len(rows) > 15:
-            L.append(f"  … {len(rows) - 15} more (reqlane req list)")
+            L.append(f"  … {len(rows) - 15} more (repomoot req list)")
     if not total:
         L.append("inbox empty")
     tail = []
     if ib.get("unread_events"):
-        tail.append(f"unread events: {ib['unread_events']} (reqlane events)")
+        tail.append(f"unread events: {ib['unread_events']} (repomoot events)")
     tail.append(f"po: {'present' if ib.get('po_present') else 'absent'}")
     L.append("  ".join(tail))
     return "\n".join(L)

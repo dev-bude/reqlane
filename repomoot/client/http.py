@@ -30,7 +30,7 @@ class ClientError(Exception):
 # ---------------------------------------------------------------- human principal
 def human_token_if_human() -> str | None:
     """The human token is sent only when a person is plausibly at the keyboard (TTY) or when CI passes it explicitly."""
-    env = os.environ.get("REQLANE_HUMAN_TOKEN")
+    env = os.environ.get("REPOMOOT_HUMAN_TOKEN")
     if env:
         return env
     try:
@@ -64,10 +64,10 @@ def save_session(cwd: Path, name: str | None, data: dict) -> Path:
 
 
 def find_session(cwd: Path | None = None, name: str | None = None, exact: bool = False) -> dict | None:
-    """Session for cwd (walking up to parents unless exact); prefer REQLANE_SESSION name."""
+    """Session for cwd (walking up to parents unless exact); prefer REPOMOOT_SESSION name."""
     cwd = (cwd or Path.cwd()).resolve()
     rsid = runtime_session_id()
-    name = name or os.environ.get("REQLANE_SESSION") or rsid or None
+    name = name or os.environ.get("REPOMOOT_SESSION") or rsid or None
     if rsid and not exact:
         # The runtime session is the identity: find its file wherever the command is run from (cd does not matter).
         for cand in sorted((config.home() / "sessions").glob(f"*.{rsid}.json")):
@@ -162,7 +162,7 @@ def start_daemon(url: str, wait: float = 8.0) -> bool:
             kw["creationflags"] = subprocess.CREATE_NEW_PROCESS_GROUP | getattr(subprocess, "CREATE_NO_WINDOW", 0x08000000)
         else:
             kw["start_new_session"] = True
-        subprocess.Popen([exe, "-m", "reqlane.server.run"], **kw)
+        subprocess.Popen([exe, "-m", "repomoot.server.run"], **kw)
     t0 = time.monotonic()
     while time.monotonic() - t0 < wait:
         if daemon_alive(url):
@@ -186,9 +186,9 @@ class Client:
     def headers(self) -> dict:
         h = {"Authorization": f"Bearer {self.token}"}
         if self.session_token:
-            h["X-Reqlane-Session"] = self.session_token
+            h["X-Repomoot-Session"] = self.session_token
         if self.human:
-            h["X-Reqlane-Human"] = self.human
+            h["X-Repomoot-Human"] = self.human
         return h
 
     def _ensure_version(self) -> None:
@@ -224,9 +224,9 @@ class Client:
                 try:
                     r = self._http.request(method, path, json=json_body, params=params, headers=self.headers())
                 except httpx.HTTPError as e:
-                    raise ClientError(f"daemon unreachable: {e}", "daemon_unavailable", "reqlane serve", 503)
+                    raise ClientError(f"daemon unreachable: {e}", "daemon_unavailable", "repomoot serve", 503)
             else:
-                raise ClientError(f"daemon not running at {self.base_url}", "daemon_unavailable", "reqlane serve", 503)
+                raise ClientError(f"daemon not running at {self.base_url}", "daemon_unavailable", "repomoot serve", 503)
         except httpx.HTTPError as e:
             raise ClientError(f"transport error: {e}", "daemon_unavailable", None, 503)
         if r.status_code >= 400:

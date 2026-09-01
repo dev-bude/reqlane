@@ -1,4 +1,4 @@
-"""Paths, config and token handling. All state lives under REQLANE_HOME (default ~/.reqlane)."""
+"""Paths, config and token handling. All state lives under REPOMOOT_HOME (default ~/.repomoot)."""
 from __future__ import annotations
 
 import os
@@ -31,21 +31,21 @@ def _private_file(f: Path, content: str) -> None:
 
 
 def home() -> Path:
-    p = _private_dir(Path(os.environ.get("REQLANE_HOME") or Path.home() / ".reqlane"))
+    p = _private_dir(Path(os.environ.get("REPOMOOT_HOME") or Path.home() / ".repomoot"))
     _private_dir(p / "sessions")
     return p
 
 
 def db_path() -> Path:
-    return home() / "reqlane.db"
+    return home() / "repomoot.db"
 
 
 def port() -> int:
-    return int(os.environ.get("REQLANE_PORT") or DEFAULT_PORT)
+    return int(os.environ.get("REPOMOOT_PORT") or DEFAULT_PORT)
 
 
 def base_url() -> str:
-    return os.environ.get("REQLANE_URL") or f"http://127.0.0.1:{port()}"
+    return os.environ.get("REPOMOOT_URL") or f"http://127.0.0.1:{port()}"
 
 
 def _token(name: str) -> str:
@@ -61,12 +61,12 @@ def token() -> str:
 
 
 def human_token() -> str:
-    """Human principal: registering agents, policy, attested decisions. Sent only from a TTY or via REQLANE_HUMAN_TOKEN."""
+    """Human principal: registering agents, policy, attested decisions. Sent only from a TTY or via REPOMOOT_HUMAN_TOKEN."""
     return _token("human.token")
 
 
 def local_timeout_minutes() -> int:
-    return int(os.environ.get("REQLANE_LOCAL_TIMEOUT_MIN") or LOCAL_DECISION_TIMEOUT_MINUTES)
+    return int(os.environ.get("REPOMOOT_LOCAL_TIMEOUT_MIN") or LOCAL_DECISION_TIMEOUT_MINUTES)
 
 
 def write_private(f: Path, content: str) -> None:

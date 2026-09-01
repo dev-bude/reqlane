@@ -33,7 +33,7 @@ jobs:
         run: python -m pytest -q
 
       - name: CLI smoke
-        run: reqlane --version
+        run: repomoot --version
 
   build:
     name: build distribution

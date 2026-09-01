@@ -1,7 +1,7 @@
 """HTTP API of the daemon. Wire protocol for CLI, MCP and any other client.
 
-Auth headers: `Authorization: Bearer <daemon token>` (every local client), `X-Reqlane-Session: <session token>`
-(after connect), `X-Reqlane-Human: <human token>` (only the human principal: registration, policy, attestation).
+Auth headers: `Authorization: Bearer <daemon token>` (every local client), `X-Repomoot-Session: <session token>`
+(after connect), `X-Repomoot-Human: <human token>` (only the human principal: registration, policy, attestation).
 """
 from __future__ import annotations
 
@@ -38,7 +38,7 @@ def create_app(service: Service | None = None, api_token: str | None = None, hum
         loop_ref["loop"] = asyncio.get_running_loop()
         yield
 
-    app = FastAPI(title="Reqlane", version=__version__, lifespan=lifespan)
+    app = FastAPI(title="Repomoot", version=__version__, lifespan=lifespan)
     app.state.service = svc
 
     async def _wake():
@@ -57,14 +57,14 @@ def create_app(service: Service | None = None, api_token: str | None = None, hum
 
     def bearer(authorization: str | None = Header(default=None)) -> None:
         if not authorization or not hmac.compare_digest(authorization, f"Bearer {api_token}"):
-            raise HTTPException(401, {"error": "bad token", "code": "unauthorized", "hint": "token lives in $REQLANE_HOME/token"})
+            raise HTTPException(401, {"error": "bad token", "code": "unauthorized", "hint": "token lives in $REPOMOOT_HOME/token"})
 
-    def human(x_reqlane_human: str | None = Header(default=None), _=Depends(bearer)) -> bool:
-        return bool(x_reqlane_human) and hmac.compare_digest(x_reqlane_human, human_token)
+    def human(x_repomoot_human: str | None = Header(default=None), _=Depends(bearer)) -> bool:
+        return bool(x_repomoot_human) and hmac.compare_digest(x_repomoot_human, human_token)
 
-    def session(x_reqlane_session: str | None = Header(default=None), _=Depends(bearer)) -> dict:
+    def session(x_repomoot_session: str | None = Header(default=None), _=Depends(bearer)) -> dict:
         try:
-            return svc.auth(x_reqlane_session)
+            return svc.auth(x_repomoot_session)
         except ServiceError as e:
             raise _err(e)
 
@@ -79,8 +79,8 @@ def create_app(service: Service | None = None, api_token: str | None = None, hum
     @app.middleware("http")
     async def _proto(request: Request, call_next):
         resp = await call_next(request)
-        resp.headers["X-Reqlane-Protocol"] = str(PROTOCOL_VERSION)
-        resp.headers["X-Reqlane-Version"] = __version__
+        resp.headers["X-Repomoot-Protocol"] = str(PROTOCOL_VERSION)
+        resp.headers["X-Repomoot-Version"] = __version__
         return resp
 
     async def body_of(request: Request) -> dict[str, Any]:
@@ -111,11 +111,11 @@ def create_app(service: Service | None = None, api_token: str | None = None, hum
         return {"agent": svc.agent_for_cwd(cwd)}
 
     @app.get("/protocol", dependencies=[Depends(bearer)])
-    def protocol(runtime: str | None = None, x_reqlane_session: str | None = Header(default=None)):
+    def protocol(runtime: str | None = None, x_repomoot_session: str | None = Header(default=None)):
         who = None
-        if x_reqlane_session:
+        if x_repomoot_session:
             try:
-                who = svc.whoami(svc.auth(x_reqlane_session))
+                who = svc.whoami(svc.auth(x_repomoot_session))
             except ServiceError:
                 who = None
         return {"card": cards.card(who, runtime), "core": cards.CORE, "role": cards.role_text(who) if who else None}
@@ -145,7 +145,7 @@ def create_app(service: Service | None = None, api_token: str | None = None, hum
     @app.post("/agents/{aid}")
     async def update_agent(aid: str, request: Request, is_human: bool = Depends(human)):
         if not is_human:
-            raise HTTPException(403, {"error": "human token required", "code": "forbidden", "hint": "run from your terminal or set REQLANE_HUMAN_TOKEN"})
+            raise HTTPException(403, {"error": "human token required", "code": "forbidden", "hint": "run from your terminal or set REPOMOOT_HUMAN_TOKEN"})
         b = await body_of(request)
         return svc.update_agent(aid, b.get("depends_on"), b.get("description"), b.get("add_repo"))
 
@@ -329,7 +329,7 @@ def create_app(service: Service | None = None, api_token: str | None = None, hum
     @app.get("/ui/data")
     def ui_data(token: str = ""):
         if not hmac.compare_digest(token, api_token):
-            raise HTTPException(401, {"error": "bad token", "code": "unauthorized", "hint": "open the UI with `reqlane ui`"})
+            raise HTTPException(401, {"error": "bad token", "code": "unauthorized", "hint": "open the UI with `repomoot ui`"})
         import os
         data = svc.overview()
         reqs = data["requests"]

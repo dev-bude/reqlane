@@ -116,7 +116,7 @@ class Service:
     def _agent(self, aid: str) -> dict:
         a = self._one("SELECT * FROM agents WHERE id=?", aid)
         if not a:
-            raise ServiceError(f"agent '{aid}' not found", "not_found", 404, hint="reqlane agents")
+            raise ServiceError(f"agent '{aid}' not found", "not_found", 404, hint="repomoot agents")
         return a
 
     def _is_po(self, agent_id: str) -> bool:
@@ -236,17 +236,17 @@ class Service:
                 agent_id = suggested
                 if not agent_id:
                     raise ServiceError("no agent registered for this directory", "not_connected", 409,
-                                       hint="the user registers it by typing `/reqlane connect [name]` or `/reqlane po` in the chat")
+                                       hint="the user registers it by typing `/repomoot connect [name]` or `/repomoot po` in the chat")
             agent = self._one("SELECT * FROM agents WHERE id=?", agent_id)
             if not agent:
                 if not human:
                     raise ServiceError(f"agent '{agent_id}' is not registered", "forbidden", 403,
-                                       hint="registration is the user's action: they type `/reqlane connect [name]` in the chat (or run it in their terminal)")
+                                       hint="registration is the user's action: they type `/repomoot connect [name]` in the chat (or run it in their terminal)")
                 agent = self.register_agent(agent_id, kind, cwd, depends_on, description)
             else:
                 if suggested != agent_id and not human:
                     raise ServiceError(f"this directory is not a repository of '{agent_id}'" + (f" (it belongs to '{suggested}')" if suggested else ""),
-                                       "forbidden", 403, hint="connect from the agent's own repository; the user can override with `/reqlane connect <name>`")
+                                       "forbidden", 403, hint="connect from the agent's own repository; the user can override with `/repomoot connect <name>`")
                 if human and (depends_on or description or (suggested != agent_id)):
                     agent = self.update_agent(agent_id, depends_on, description, cwd if suggested != agent_id else None)
             # One live session per (agent, cwd, name): close the previous one.
@@ -281,11 +281,11 @@ class Service:
 
     def auth(self, token: str | None) -> dict:
         if not token:
-            raise ServiceError("no session", "not_connected", 401, hint="reqlane connect <agent>")
+            raise ServiceError("no session", "not_connected", 401, hint="repomoot connect <agent>")
         with self.tx():
             s = self._one("SELECT * FROM sessions WHERE token_hash=?", _hash(token))
             if not s or s["status"] == "gone":
-                raise ServiceError("session expired or unknown", "not_connected", 401, hint="reqlane connect <agent>")
+                raise ServiceError("session expired or unknown", "not_connected", 401, hint="repomoot connect <agent>")
             if (parse_ts(now()) - parse_ts(s["last_seen_at"])).total_seconds() > 10:
                 self.conn.execute("UPDATE sessions SET last_seen_at=?, status='active' WHERE id=?", (now(), s["id"]))
             return s
@@ -421,7 +421,7 @@ class Service:
             if req["status"] == "open":
                 target = lc.CLAIM_STATUS.get(req["type"])
                 if target is None:
-                    raise ServiceError(f"{req['type']} requests are not claimed; use `reqlane req ack`", "bad_transition")
+                    raise ServiceError(f"{req['type']} requests are not claimed; use `repomoot req ack`", "bad_transition")
                 return {"request": self._set_status(req, target, session, {"claimed_by": session["id"]})}
             self.conn.execute("UPDATE requests SET claimed_by=? WHERE id=?", (session["id"], rid))
             return {"request": self._req(rid)}
@@ -498,7 +498,7 @@ class Service:
                 self._unblock_parent(req, session)
             elif action == "ack":
                 if req["type"] != "notice":
-                    raise ServiceError("ack is for notices; use `reqlane events ack` for events", "bad_transition")
+                    raise ServiceError("ack is for notices; use `repomoot events ack` for events", "bad_transition")
                 if not is_rcpt:
                     raise ServiceError("only the recipient acknowledges", "forbidden", 403)
                 if req["status"] != "open":

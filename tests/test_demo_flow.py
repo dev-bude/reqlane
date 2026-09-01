@@ -7,16 +7,16 @@ from pathlib import Path
 import pytest
 from fastapi.testclient import TestClient
 
-from reqlane.core.service import Service
-from reqlane.server.app import create_app
+from repomoot.core.service import Service
+from repomoot.server.app import create_app
 
 TOKEN, HUMAN = "t", "h"
 
 
 @pytest.fixture()
 def api(tmp_path: Path):
-    os.environ["REQLANE_HOME"] = str(tmp_path / "home")
-    svc = Service(tmp_path / "reqlane.db")
+    os.environ["REPOMOOT_HOME"] = str(tmp_path / "home")
+    svc = Service(tmp_path / "repomoot.db")
     with TestClient(create_app(svc, api_token=TOKEN, human_token=HUMAN)) as c:
         c.svc = svc
         yield c
@@ -25,9 +25,9 @@ def api(tmp_path: Path):
 def H(session: str | None = None, human: bool = False) -> dict:
     h = {"Authorization": f"Bearer {TOKEN}"}
     if session:
-        h["X-Reqlane-Session"] = session
+        h["X-Repomoot-Session"] = session
     if human:
-        h["X-Reqlane-Human"] = HUMAN
+        h["X-Repomoot-Human"] = HUMAN
     return h
 
 
@@ -99,7 +99,7 @@ def test_demo_flow(api, tmp_path):
     assert ok(api.get("/events", headers=H(db)))["events"] == []
     ok(api.post(f"/requests/{rid}/messages", headers=H(db), json={"body": "Yes.", "type": "answer"}))
     d = ok(api.get(f"/requests/{rid}", headers=H(gl)))
-    assert d["actor"] == "gridlib" and any(x.startswith("reqlane propose") for x in d["next"])
+    assert d["actor"] == "gridlib" and any(x.startswith("repomoot propose") for x in d["next"])
     # delivery before proposal acceptance is refused for a capability
     r = api.post("/artifacts", headers=H(gl), json={"type": "delivery", "request_id": rid, "title": "x", "data": {"repo": "gridlib", "commit": "a", "tests": {}}})
     assert r.status_code == 409
@@ -129,7 +129,7 @@ def test_demo_flow(api, tmp_path):
     res = ok(api.post(f"/requests/{dec}/decide", headers=H(po), json={"option": "A", "reason": "1.x frozen", "affected": ["gridlib", "dashboard"]}))
     assert res["request"]["status"] == "closed" and res["attested"] is True
     parent = ok(api.get(f"/requests/{rid}", headers=H(db)))
-    assert parent["request"]["status"] == "proposal" and any(x.startswith("reqlane req accept") for x in parent["next"])
+    assert parent["request"]["status"] == "proposal" and any(x.startswith("repomoot req accept") for x in parent["next"])
     gid = ok(api.post("/agreements", headers=H(po), json={"title": "1.x compat", "content": "No breaking changes before 2.0", "parties": ["gridlib", "dashboard"]}))["agreement"]["id"]
     # policy needs the human token even from the PO session
     assert api.put("/po/policy", headers=H(po), json={"mode": "agent"}).status_code == 403
@@ -168,7 +168,7 @@ def test_local_decision_unattested_vs_attested_and_timeout(api, tmp_path, monkey
     # timeout promotes a local decision to the PO queue
     res = ok(api.post("/po/ask", headers=H(a), json={"title": "Priority?", "kind": "priority"}))
     dec3 = res["request"]["id"]
-    monkeypatch.setenv("REQLANE_LOCAL_TIMEOUT_MIN", "0")
+    monkeypatch.setenv("REPOMOOT_LOCAL_TIMEOUT_MIN", "0")
     with api.svc.tx():
         api.svc.conn.execute("UPDATE requests SET updated_at='2000-01-01T00:00:00Z' WHERE id=?", (dec3,))
     assert ok(api.post("/admin/tick", headers=H()))["decisions_promoted"] == 1

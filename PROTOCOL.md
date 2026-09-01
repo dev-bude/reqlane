@@ -1,6 +1,6 @@
-# Reqlane protocol v1 (draft)
+# Repomoot protocol v1 (draft)
 
-This document describes the request lifecycle and the roles independently of the `reqlane`
+This document describes the request lifecycle and the roles independently of the `repomoot`
 implementation, so that other runtimes or tools can implement or map to it. Licensed
 CC-BY-4.0. Transport is not part of the protocol: the reference daemon exposes it over HTTP
 and a CLI; the same model maps onto A2A Task states and MCP Tasks (see §7).
@@ -101,7 +101,7 @@ protocol.
 
 ## Licence
 
-This document (the Reqlane protocol description) is licensed under
-[CC BY 4.0](https://creativecommons.org/licenses/by/4.0/). The `reqlane` reference implementation
+This document (the Repomoot protocol description) is licensed under
+[CC BY 4.0](https://creativecommons.org/licenses/by/4.0/). The `repomoot` reference implementation
 is licensed separately under Apache-2.0; see [LICENSE](LICENSE) and [NOTICE](NOTICE).
 Copyright 2026 SimeonAr.

@@ -52,7 +52,7 @@ as an appointed representative at an online or offline event.
 
 Instances of abusive, harassing, or otherwise unacceptable behavior may be reported to the
 maintainer privately via GitHub — open a private report from the
-[Security tab](https://github.com/dev-bude/reqlane/security/advisories/new), or contact
+[Security tab](https://github.com/dev-bude/repomoot/security/advisories/new), or contact
 [@dev-bude](https://github.com/dev-bude). Conduct that violates GitHub's own rules can also be
 reported to [GitHub Support](https://support.github.com/contact/report-abuse).
 
